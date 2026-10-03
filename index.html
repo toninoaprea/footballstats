@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statistiche Campionati</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0b2545; --navy2:#13315c; --blue:#1d6fd8; --gold:#f2b705; --gold2:#ffd54a;
+  --bg:#eef3f9; --card:#ffffff; --text:#0f1b2d; --muted:#5d6b82; --line:#dde5f0;
+  --win:#1fa463; --draw:#f0a500; --loss:#e0453a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+h1,h2,h3,h4,.oswald{font-family:'Oswald',sans-serif;letter-spacing:.5px}
+
+/* HEADER */
+header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.25);position:sticky;top:0;z-index:50}
+.head-in{max-width:1300px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo .ball{width:40px;height:40px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
+.logo h1{font-size:22px;text-transform:uppercase}
+.logo h1 span{color:var(--gold)}
+nav{display:flex;gap:6px;margin-left:auto}
+nav button{background:transparent;border:2px solid transparent;color:#cfe0f5;font-family:'Oswald',sans-serif;font-size:15px;text-transform:uppercase;padding:7px 14px;border-radius:8px;cursor:pointer}
+nav button.active{background:var(--gold);color:var(--navy)}
+nav button:hover:not(.active){border-color:rgba(255,255,255,.25);color:#fff}
+.btn-upd{background:#fff;color:var(--navy);border:none;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px}
+.btn-upd:hover{background:var(--gold2)}
+.btn-upd.spin .ic{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{max-width:1300px;margin:0 auto;padding:0 16px 10px;font-size:12px;color:#a9c1e0}
+.status b{color:var(--gold2);font-weight:600}
+
+main{max-width:1300px;margin:0 auto;padding:22px 16px 60px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(11,37,69,.08);padding:20px;margin-bottom:22px}
+.card-title{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.card-title h2{font-size:20px;text-transform:uppercase;color:var(--navy)}
+.card-title .bar{width:6px;height:24px;background:var(--gold);border-radius:3px}
+.card-title .sub{font-size:13px;color:var(--muted);margin-left:auto}
+
+/* SEARCH */
+.search-wrap{position:relative}
+.search{width:100%;padding:14px 16px 14px 46px;font-size:16px;border:2px solid var(--line);border-radius:12px;outline:none;background:#f8fafd}
+.search:focus{border-color:var(--blue);background:#fff}
+.search-ic{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;opacity:.5}
+.sugg{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:300px;overflow:auto;z-index:20;display:none}
+.sugg div{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.sugg div:hover,.sugg div.hl{background:#eef4fd}
+.sugg small{color:var(--muted)}
+
+/* TEAM DETAIL */
+.team-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0 14px}
+.crest{width:54px;height:54px;border-radius:12px;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-size:20px}
+.team-head h3{font-size:24px;color:var(--navy)}
+.team-head .lg{font-size:13px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:#f4f7fb;border-radius:10px;padding:12px;text-align:center}
+.kpi .v{font-family:'Oswald';font-size:26px;color:var(--navy)}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi.w .v{color:var(--win)}.kpi.d .v{color:var(--draw)}.kpi.l2 .v{color:var(--loss)}
+.wdl-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:16px;background:#e6ecf4}
+.wdl-bar div{height:100%}
+.form{display:inline-flex;gap:4px;flex-wrap:wrap}
+.f{width:24px;height:24px;border-radius:6px;color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.f.V{background:var(--win)}.f.N{background:var(--draw)}.f.P{background:var(--loss)}
+
+.sec-title{font-family:'Oswald';text-transform:uppercase;font-size:15px;color:var(--navy);margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.sec-title::before{content:'';width:4px;height:16px;background:var(--gold);border-radius:2px}
+.sec-title small{font-family:'Inter';text-transform:none;font-size:12px;color:var(--muted);font-weight:400}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.pbox{background:#f4f7fb;border-radius:10px;padding:12px}
+.pbox .pl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.pbox .pv{font-family:'Oswald';font-size:26px;color:var(--navy);margin:2px 0 6px}
+.pbox .pn{font-size:11px;color:var(--muted);margin-top:5px}
+.pbar{height:7px;background:#dfe7f2;border-radius:4px;overflow:hidden}
+.pbar div{height:100%;border-radius:4px}
+.hi{background:var(--win)}.mid{background:var(--draw)}.lo{background:#7f93ad}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+.half td,.half th{padding:9px 10px}
+.half .pbar{width:90px;display:inline-block;vertical-align:middle;margin-left:8px}
+.na{background:#fff8e1;border:1px dashed var(--draw);color:#8a6100;border-radius:10px;padding:12px;font-size:13px}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:var(--navy);color:#fff;font-family:'Oswald';font-weight:500;text-transform:uppercase;font-size:13px;padding:10px 8px;text-align:center;white-space:nowrap;cursor:pointer;user-select:none}
+th:first-child{border-top-left-radius:10px}th:last-child{border-top-right-radius:10px}
+th.left,td.left{text-align:left}
+th .arr{color:var(--gold);font-size:11px}
+th.ov{background:#1b3f6e}
+td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+tbody tr:nth-child(even){background:#f8fafd}
+tbody tr:hover{background:#fff8dc}
+.tw{overflow-x:auto;border-radius:10px}
+.pos{font-family:'Oswald';color:var(--muted)}
+.tname{font-weight:600;color:var(--navy);cursor:pointer}
+.tname:hover{text-decoration:underline}
+.c-w{color:var(--win);font-weight:700}.c-d{color:var(--draw);font-weight:700}.c-l{color:var(--loss);font-weight:700}
+.res{font-family:'Oswald';font-size:15px}
+.muted{color:var(--muted)}
+.heat{font-weight:600;border-radius:6px;padding:3px 6px;display:inline-block;min-width:44px}
+.cards{font-size:12px;white-space:nowrap}
+.yc,.rc{display:inline-block;width:9px;height:12px;border-radius:2px;vertical-align:-1px;margin:0 2px 0 4px}
+.yc{background:#f5c400}.rc{background:#e0302a}
+
+/* COMPARE */
+.cmp-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:16px}
+.cmp-slot{position:relative}
+.cmp-slot input{width:100%;padding:11px 34px 11px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;outline:none;background:#f8fafd}
+.cmp-slot input:focus{border-color:var(--blue);background:#fff}
+.cmp-slot input.ok{border-color:var(--win);background:#f1fbf5;font-weight:600}
+.cmp-slot .x{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;font-size:16px;cursor:pointer;color:var(--muted);display:none}
+.cmp-slot input.ok~.x{display:block}
+.cmp-slot .num{position:absolute;top:-8px;left:10px;background:var(--gold);color:var(--navy);font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px}
+.best{background:#fff3c4 !important;font-weight:700}
+.grp td{background:#e9eff8 !important;font-family:'Oswald';text-transform:uppercase;font-size:12px;color:var(--navy2);text-align:left;padding:6px 8px}
+
+/* FILTERS */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filters input{padding:9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;outline:none;background:#f8fafd}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:20px;border:2px solid var(--line);background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chip.on{background:var(--navy);border-color:var(--navy);color:var(--gold)}
+
+.empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+.tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;background:#e6eef9;color:var(--navy2);font-weight:600}
+.ha{font-size:11px;font-weight:700;color:var(--muted)}
+.flag{font-size:18px}
+
+/* MODAL */
+.modal{position:fixed;inset:0;background:rgba(11,37,69,.6);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:30px 12px;overflow:auto}
+.modal.open{display:flex}
+.modal .card{max-width:960px;width:100%;position:relative}
+.close{position:absolute;top:12px;right:14px;border:none;background:#eef3f9;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer}
+@media(max-width:640px){nav{margin-left:0;width:100%}nav button{flex:1}.logo h1{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-in">
+    <div class="logo"><div class="ball">⚽</div><h1>Stat<span>Campionati</span></h1></div>
+    <nav>
+      <button class="active" data-page="home">Home</button>
+      <button data-page="squadre">Squadre</button>
+    </nav>
+    <button class="btn-upd" id="btnUpd"><span class="ic">⟳</span> Aggiorna</button>
+  </div>
+  <div class="status" id="status">Caricamento…</div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section class="page active" id="page-home">
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Cerca squadra</h2></div>
+      <div class="search-wrap">
+        <span class="search-ic">🔍</span>
+        <input class="search" id="mainSearch" placeholder="Scrivi il nome di una squadra… (es. Napoli)" autocomplete="off">
+        <div class="sugg" id="mainSugg"></div>
+      </div>
+      <div id="teamResult"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Confronta squadre</h2><span class="sub">fino a 5 squadre</span></div>
+      <div class="cmp-inputs" id="cmpInputs"></div>
+      <div id="cmpResult"><div class="empty">Scegli almeno 2 squadre per vedere il confronto.</div></div>
+    </div>
+  </section>
+
+  <!-- SQUADRE -->
+  <section class="page" id="page-squadre">
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Squadre</h2><span class="sub" id="sqCount"></span></div>
+      <div class="filters">
+        <div class="chips" id="lgChips"></div>
+        <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
+      </div>
+      <div class="tw"><table id="sqTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal"><div class="card"><button class="close" onclick="closeModal()">✕</button><div id="modalBody"></div></div></div>
+
+<script>
+/* ================= CONFIG ================= */
+const N_MATCHES = 100;
+const LEAGUES = [
+  {code:'it.1', fd:'I1',  name:'Serie A',        flag:'🇮🇹'},
+  {code:'en.1', fd:'E0',  name:'Premier League', flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},
+  {code:'es.1', fd:'SP1', name:'La Liga',        flag:'🇪🇸'},
+  {code:'de.1', fd:'D1',  name:'Bundesliga',     flag:'🇩🇪'},
+  {code:'fr.1', fd:'F1',  name:'Ligue 1',        flag:'🇫🇷'},
+  {code:'pt.1', fd:'P1',  name:'Primeira Liga',  flag:'🇵🇹'},
+  {code:'nl.1', fd:'N1',  name:'Eredivisie',     flag:'🇳🇱'},
+];
+// Fonte 1 (completa): cartella data/ del sito, riempita ogni giorno dal robot GitHub (football-data.co.uk)
+// Fonte 2 (riserva, senza cartellini): openfootball su GitHub
+const OF_SRC = 'https://raw.githubusercontent.com/openfootball/football.json/master/';
+const OF_SEASONS = ['2023-24','2024-25','2025-26','2026-27'];
+const CACHE_KEY = 'statcamp_cache_v2';
+
+/* ================= STATE ================= */
+let MATCHES = [], TEAMS = {}, TEAM_LIST = [];
+let INFO = {src:'', time:null, cards:false};
+
+/* ================= UTILS ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const ALIAS = {'FC Internazionale Milano':'Inter','Internazionale Milano':'Inter','Juventus FC':'Juventus'};
+function shortName(n){
+  if(ALIAS[n]) return ALIAS[n];
+  return n.replace(/\s(18|19|20)\d\d\b/g,'')
+          .replace(/\b(SSC|AC|ACF|AS|US|FC|SS|SSD|UC|CFC|BC|SC|AFC|CF|RC|RCD|SD|UD|CD|SV|VfB|VfL|TSG|RB|OGC|LOSC|AJ|SL|SE|1\.\s*FC|Calcio|Football Club|de Fútbol|Balompié)\b\.?/g,'')
+          .replace(/\s+/g,' ').trim() || n;
+}
+function initials(n){ const w = shortName(n).split(' ').filter(Boolean); return (w.length>1 ? w[0][0]+w[1][0] : w[0].slice(0,3)).toUpperCase(); }
+function fmtDate(d){ const [y,m,g] = d.split('-'); return `${g}/${m}/${y.slice(2)}`; }
+const pct = (n,d) => d ? n/d*100 : null;
+const fp = v => v==null ? 'n.d.' : v.toFixed(0)+'%';
+const lvl = v => v==null ? 'lo' : v>=70 ? 'hi' : v>=50 ? 'mid' : 'lo';
+function heat(v){
+  if(v==null) return '<span class="muted">n.d.</span>';
+  const a = Math.max(0, Math.min(1,(v-30)/70));
+  return `<span class="heat" style="background:rgba(31,164,99,${(a*0.55).toFixed(2)})">${v.toFixed(0)}%</span>`;
+}
+const lgName = c => (LEAGUES.find(l => l.code===c) || {}).name || c;
+const lgFlag = c => (LEAGUES.find(l => l.code===c) || {}).flag || '';
+const formHTML = f => `<span class="form">${f.map(r=>`<span class="f ${r}">${r}</span>`).join('')}</span>`;
+
+/* ================= LOAD DATA ================= */
+function parseCSV(text, lg, season){
+  const lines = text.replace(/^﻿/,'').split(/\r?\n/).filter(l => l.trim());
+  if(lines.length < 2) return [];
+  const H = lines[0].split(',').map(s=>s.trim());
+  const ix = k => H.indexOf(k);
+  const iD=ix('Date'), iH=ix('HomeTeam'), iA=ix('AwayTeam'), iHG=ix('FTHG'), iAG=ix('FTAG'),
+        iHH=ix('HTHG'), iAH=ix('HTAG'), iHY=ix('HY'), iAY=ix('AY'), iHR=ix('HR'), iAR=ix('AR');
+  const num = (r,i) => (i<0 || r[i]===undefined || r[i].trim()==='') ? null : +r[i];
+  const out = [];
+  for(let k=1;k<lines.length;k++){
+    const r = lines[k].split(',');
+    const hg = num(r,iHG), ag = num(r,iAG);
+    if(hg==null || ag==null || !r[iH]) continue;
+    let d = r[iD].trim();
+    if(!/^\d{4}-/.test(d)){ const [g,m,y] = d.split('/'); d = `${y.length===2?'20'+y:y}-${m.padStart(2,'0')}-${g.padStart(2,'0')}`; }
+    out.push({d, lg, s:season, h:r[iH].trim(), a:r[iA].trim(), hg, ag,
+      hh:num(r,iHH), ah:num(r,iAH), hy:num(r,iHY), ay:num(r,iAY), hr:num(r,iHR), ar:num(r,iAR)});
+  }
+  return out;
+}
+async function loadFromRepo(){
+  const r = await fetch('data/meta.json?t='+Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error('no data');
+  const meta = await r.json();
+  const all = [];
+  await Promise.all(meta.files.map(async f => {
+    const lg = LEAGUES.find(l => l.fd===f.code); if(!lg) return;
+    const res = await fetch('data/'+f.file+'?t='+Date.now(), {cache:'no-store'});
+    if(res.ok) all.push(...parseCSV(await res.text(), lg.code, f.season));
+  }));
+  if(!all.length) throw new Error('empty');
+  return {all, src:'football-data.co.uk', srcTime:meta.updated, cards:true};
+}
+async function loadFromOpenfootball(){
+  const all = [];
+  const jobs = [];
+  for(const lg of LEAGUES) for(const s of OF_SEASONS) jobs.push({lg,s});
+  await Promise.all(jobs.map(async ({lg,s}) => {
+    try{
+      const r = await fetch(OF_SRC+s+'/'+lg.code+'.json', {cache:'no-store'});
+      if(!r.ok) return;
+      const d = await r.json();
+      for(const m of d.matches||[]){
+        let sc = m.score, ft=null, ht=null;
+        if(Array.isArray(sc) && sc.length===2) ft = sc;
+        else if(sc && sc.ft){ ft = sc.ft; ht = sc.ht||null; }
+        if(!ft) continue;
+        all.push({d:m.date, lg:lg.code, s, h:m.team1, a:m.team2, hg:ft[0], ag:ft[1],
+                  hh:ht?ht[0]:null, ah:ht?ht[1]:null, hy:null, ay:null, hr:null, ar:null});
+      }
+    }catch(e){}
+  }));
+  if(!all.length) throw new Error('empty');
+  return {all, src:'openfootball', srcTime:null, cards:false};
+}
+async function loadData(force){
+  if(!force){
+    try{
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if(c && c.matches){ MATCHES = c.matches; INFO = c.info; build(); return; }
+    }catch(e){}
+  }
+  const btn = $('btnUpd');
+  btn.classList.add('spin'); $('status').textContent = 'Scarico i risultati…';
+  let res = null;
+  try{ res = await loadFromRepo(); }catch(e){ try{ res = await loadFromOpenfootball(); }catch(e2){} }
+  btn.classList.remove('spin');
+  if(!res){ $('status').textContent = '⚠️ Impossibile scaricare i dati. Controlla la connessione.'; return; }
+  MATCHES = res.all;
+  INFO = {src:res.src, time:new Date().toISOString(), srcTime:res.srcTime, cards:res.cards};
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({matches:MATCHES, info:INFO})); }catch(e){}
+  build();
+}
+
+/* ================= BUILD STATS ================= */
+function build(){
+  MATCHES.sort((x,y) => y.d.localeCompare(x.d));          // più recenti prima
+  TEAMS = {};
+  for(const m of MATCHES){
+    for(const side of ['h','a']){
+      const name = m[side];
+      if(!TEAMS[name]) TEAMS[name] = {name, short:shortName(name), matches:[]};
+      const t = TEAMS[name];
+      if(t.matches.length < N_MATCHES) t.matches.push(m);   // solo le ultime 100: la più vecchia esce da sola
+    }
+  }
+  const curSeason = {};
+  for(const m of MATCHES) if(!curSeason[m.lg] || m.s > curSeason[m.lg]) curSeason[m.lg] = m.s;
+  TEAM_LIST = Object.values(TEAMS).map(t => {
+    Object.assign(t, calc(t));
+    t.league = t.matches[0].lg;
+    t.active = t.matches[0].s === curSeason[t.league];
+    return t;
+  });
+  const last = MATCHES[0] ? fmtDate(MATCHES[0].d) : '-';
+  $('status').innerHTML = `${TEAM_LIST.filter(t=>t.active).length} squadre · ultima partita: <b>${last}</b> · fonte: ${INFO.src}${INFO.cards?'':' (senza cartellini)'} · aggiornato ${INFO.time ? new Date(INFO.time).toLocaleString('it-IT') : '-'}`;
+  renderSquadre(); renderCompare(); if(currentTeam && TEAMS[currentTeam]) showTeam(currentTeam);
+}
+
+const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5];
+function calc(t){
+  let V=0,N=0,P=0,GF=0,GS=0,GG=0,Gh=0,Gc=0,Y=0,R=0,YT=0,RT=0;
+  const o=[0,0,0,0], pt=[0,0,0], st=[0,0,0], form=[];
+  for(const m of t.matches){
+    const home = m.h===t.name;
+    const gf = home?m.hg:m.ag, gs = home?m.ag:m.hg, tot = m.hg+m.ag;
+    GF+=gf; GS+=gs;
+    const r = gf>gs?'V':gf<gs?'P':'N';
+    if(r==='V')V++; else if(r==='P')P++; else N++;
+    if(form.length<5) form.push(r);
+    OV.forEach((x,i)=>{ if(tot>x) o[i]++; });
+    if(gf>0 && gs>0) GG++;
+    if(m.hh!=null && m.ah!=null){
+      Gh++; const p = m.hh+m.ah, s2 = tot-p;
+      HOV.forEach((x,i)=>{ if(p>x) pt[i]++; if(s2>x) st[i]++; });
+    }
+    if(m.hy!=null && m.ay!=null){
+      Gc++;
+      Y += home?m.hy:m.ay; R += home?(m.hr||0):(m.ar||0);
+      YT += m.hy+m.ay; RT += (m.hr||0)+(m.ar||0);
+    }
+  }
+  const G = t.matches.length;
+  const s = {G,V,N,P,GF,GS,DR:GF-GS,PTS:V*3+N,GG,NG:G-GG,Gh,Gc,Y,R,YT,RT,o,pt,st,form,
+    pV:pct(V,G), pN:pct(N,G), pP:pct(P,G), mGF:G?GF/G:0, mGS:G?GS/G:0,
+    pGG:pct(GG,G), pNG:pct(G-GG,G),
+    mY:Gc?Y/Gc:null, mYT:Gc?YT/Gc:null, pR:pct(R,Gc)};
+  OV.forEach((x,i)=> s['pO'+i] = pct(o[i],G));
+  HOV.forEach((x,i)=>{ s['pPT'+i] = pct(pt[i],Gh); s['pST'+i] = pct(st[i],Gh); });
+  return s;
+}
+
+/* ================= SEARCH (riusabile) ================= */
+function findTeams(q){
+  q = norm(q.trim());
+  if(!q) return [];
+  return TEAM_LIST.filter(t => norm(t.name).includes(q) || norm(t.short).includes(q))
+    .sort((a,b) => (b.active-a.active) || (norm(a.short).startsWith(q)?0:1) - (norm(b.short).startsWith(q)?0:1) || a.short.localeCompare(b.short))
+    .slice(0,10);
+}
+function attachSearch(input, box, onPick){
+  let idx = -1, list = [];
+  const draw = () => {
+    list = findTeams(input.value); idx = -1;
+    if(!list.length){ box.style.display='none'; return; }
+    box.innerHTML = list.map((t,i)=>`<div data-i="${i}"><span>${esc(t.short)}</span><small>${lgFlag(t.league)} ${lgName(t.league)}${t.active?'':' · non più in campionato'}</small></div>`).join('');
+    box.style.display='block';
+  };
+  input.addEventListener('input', draw);
+  input.addEventListener('focus', () => input.value && draw());
+  input.addEventListener('keydown', e => {
+    if(box.style.display!=='block') return;
+    if(e.key==='ArrowDown'){ idx=Math.min(idx+1,list.length-1); e.preventDefault(); }
+    else if(e.key==='ArrowUp'){ idx=Math.max(idx-1,0); e.preventDefault(); }
+    else if(e.key==='Enter'){ const t = list[idx<0?0:idx]; if(t){ box.style.display='none'; onPick(t); } return; }
+    else return;
+    [...box.children].forEach((c,i)=>c.classList.toggle('hl', i===idx));
+  });
+  box.addEventListener('mousedown', e => {
+    const d = e.target.closest('[data-i]'); if(!d) return;
+    e.preventDefault(); box.style.display='none'; onPick(list[+d.dataset.i]);
+  });
+  input.addEventListener('blur', () => setTimeout(()=>box.style.display='none',150));
+}
+
+/* ================= SCHEDA SQUADRA ================= */
+let currentTeam = null;
+function pbox(label, n, d){
+  const p = pct(n,d);
+  return `<div class="pbox"><div class="pl">${label}</div><div class="pv">${fp(p)}</div>
+    <div class="pbar"><div class="${lvl(p)}" style="width:${p||0}%"></div></div>
+    <div class="pn">${d ? `${n} partite su ${d}` : 'dato non disponibile'}</div></div>`;
+}
+function halfCell(n,d){
+  const p = pct(n,d);
+  return `<td><b>${fp(p)}</b><span class="pbar"><div class="${lvl(p)}" style="width:${p||0}%"></div></span><br><small class="muted">${d?n+'/'+d:''}</small></td>`;
+}
+function teamCardHTML(t){
+  const rows = t.matches.map(m=>{
+    const home = m.h===t.name;
+    const opp = home ? m.a : m.h;
+    const gf = home?m.hg:m.ag, gs = home?m.ag:m.hg;
+    const r = gf>gs?'V':gf<gs?'P':'N';
+    const y = home?m.hy:m.ay, rr = home?m.hr:m.ar;
+    const cards = y==null ? '<span class="muted">–</span>' : `<span class="cards"><span class="yc"></span>${y}${rr?`<span class="rc"></span>${rr}`:''}</span>`;
+    return `<tr><td class="muted">${fmtDate(m.d)}</td><td><span class="tag">${lgName(m.lg)}</span></td>
+      <td class="ha">${home?'CASA':'TRASF.'}</td><td class="left">${esc(shortName(opp))}</td>
+      <td class="res">${m.hg} - ${m.ag}</td><td class="muted">${m.hh!=null?`(${m.hh}-${m.ah})`:''}</td>
+      <td>${cards}</td><td><span class="f ${r}">${r}</span></td></tr>`;
+  }).join('');
+
+  const cardsHTML = t.Gc ? `
+    <div class="kpis" style="margin-bottom:0">
+      <div class="kpi"><div class="v" style="color:#c99a00">${t.Y}</div><div class="l">Ammonizioni squadra</div></div>
+      <div class="kpi"><div class="v">${t.mY.toFixed(2)}</div><div class="l">Media ammonizioni</div></div>
+      <div class="kpi"><div class="v" style="color:var(--loss)">${t.R}</div><div class="l">Espulsioni squadra</div></div>
+      <div class="kpi"><div class="v">${fp(t.pR)}</div><div class="l">Partite con espulsione</div></div>
+      <div class="kpi"><div class="v">${t.mYT.toFixed(2)}</div><div class="l">Media gialli a partita (tot.)</div></div>
+    </div>
+    <p class="muted" style="font-size:11px;margin-top:6px">Calcolato su ${t.Gc} partite con dati cartellini.</p>`
+    : `<div class="na">Ammonizioni ed espulsioni non disponibili con la fonte attuale (${INFO.src}). Compaiono quando il robot GitHub scarica i dati da football-data.co.uk.</div>`;
+
+  return `
+  <div class="team-head">
+    <div class="crest">${initials(t.name)}</div>
+    <div><h3>${esc(t.short)}</h3><div class="lg">${lgFlag(t.league)} ${lgName(t.league)} · ultime ${t.G} partite${t.active?'':' · non più in questo campionato'}</div></div>
+    <div style="margin-left:auto">${formHTML(t.form)}</div>
+  </div>
+  <div class="wdl-bar"><div style="width:${t.pV}%;background:var(--win)"></div><div style="width:${t.pN}%;background:var(--draw)"></div><div style="width:${t.pP}%;background:var(--loss)"></div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${t.G}</div><div class="l">Giocate</div></div>
+    <div class="kpi w"><div class="v">${t.V}</div><div class="l">Vinte · ${fp(t.pV)}</div></div>
+    <div class="kpi d"><div class="v">${t.N}</div><div class="l">Nulle · ${fp(t.pN)}</div></div>
+    <div class="kpi l2"><div class="v">${t.P}</div><div class="l">Perse · ${fp(t.pP)}</div></div>
+    <div class="kpi"><div class="v">${t.GF}</div><div class="l">Gol fatti · ${t.mGF.toFixed(2)}</div></div>
+    <div class="kpi"><div class="v">${t.GS}</div><div class="l">Gol subiti · ${t.mGS.toFixed(2)}</div></div>
+  </div>
+
+  <div class="sec-title">Over <small>gol totali della partita</small></div>
+  <div class="pgrid">${OV.map((x,i)=>pbox('Over '+String(x).replace('.',','), t.o[i], t.G)).join('')}</div>
+
+  <div class="two">
+    <div>
+      <div class="sec-title">Goal / No Goal</div>
+      <div class="pgrid">${pbox('Goal', t.GG, t.G)}${pbox('No Goal', t.NG, t.G)}</div>
+    </div>
+    <div>
+      <div class="sec-title">Primo / secondo tempo <small>${t.Gh} partite con dati</small></div>
+      ${t.Gh ? `<div class="tw"><table class="half">
+        <thead><tr><th class="left"></th><th>1° tempo</th><th>2° tempo</th></tr></thead>
+        <tbody>${HOV.map((x,i)=>`<tr><td class="left"><b>Over ${String(x).replace('.',',')}</b></td>${halfCell(t.pt[i],t.Gh)}${halfCell(t.st[i],t.Gh)}</tr>`).join('')}</tbody>
+      </table></div>` : `<div class="na">Risultati del primo tempo non disponibili.</div>`}
+    </div>
+  </div>
+
+  <div class="sec-title">Ammonizioni / Espulsioni</div>
+  ${cardsHTML}
+
+  <div class="sec-title">Ultime ${t.G} partite</div>
+  <div class="tw" style="max-height:420px;overflow:auto"><table>
+    <thead><tr><th>Data</th><th>Camp.</th><th></th><th class="left">Avversario</th><th>Ris.</th><th>1°T</th><th>Cart.</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+function showTeam(name){
+  const t = TEAMS[name]; if(!t) return;
+  currentTeam = name;
+  $('teamResult').innerHTML = teamCardHTML(t);
+}
+function openModal(name){
+  const t = TEAMS[name]; if(!t) return;
+  $('modalBody').innerHTML = teamCardHTML(t);
+  $('modal').classList.add('open');
+}
+function closeModal(){ $('modal').classList.remove('open'); }
+$('modal').addEventListener('click', e => { if(e.target.id==='modal') closeModal(); });
+
+/* ================= CONFRONTO ================= */
+const cmp = [null,null,null,null,null];
+function buildCompareInputs(){
+  $('cmpInputs').innerHTML = cmp.map((_,i)=>`
+    <div class="cmp-slot"><span class="num">${i+1}</span>
+      <input id="cmp${i}" placeholder="Squadra ${i+1}" autocomplete="off">
+      <button class="x" data-i="${i}">✕</button>
+      <div class="sugg" id="cmpS${i}"></div></div>`).join('');
+  cmp.forEach((_,i)=>{
+    const inp = $('cmp'+i);
+    attachSearch(inp, $('cmpS'+i), t => { cmp[i]=t.name; inp.value=t.short; inp.classList.add('ok'); renderCompare(); });
+    inp.addEventListener('input', () => { if(cmp[i]){ cmp[i]=null; inp.classList.remove('ok'); renderCompare(); } });
+  });
+  $('cmpInputs').addEventListener('click', e => {
+    const b = e.target.closest('.x'); if(!b) return;
+    const i = +b.dataset.i; cmp[i]=null; const inp=$('cmp'+i); inp.value=''; inp.classList.remove('ok'); renderCompare();
+  });
+}
+const P = v => fp(v), D2 = v => v==null?'n.d.':v.toFixed(2);
+const CMP_ROWS = [
+  {grp:'Risultati'},
+  {k:'G',   l:'Giocate'},
+  {k:'V',   l:'Vinte',           best:'max'},
+  {k:'N',   l:'Nulle'},
+  {k:'P',   l:'Perse',           best:'min'},
+  {k:'pV',  l:'% Vittorie',      best:'max', f:P},
+  {k:'PTS', l:'Punti',           best:'max'},
+  {k:'GF',  l:'Gol fatti',       best:'max'},
+  {k:'GS',  l:'Gol subiti',      best:'min'},
+  {k:'DR',  l:'Differenza reti', best:'max', f:v=>(v>0?'+':'')+v},
+  {k:'form',l:'Ultime 5',        html:formHTML},
+  {grp:'Over / Goal'},
+  {k:'pO0', l:'Over 0,5', f:P}, {k:'pO1', l:'Over 1,5', f:P}, {k:'pO2', l:'Over 2,5', f:P}, {k:'pO3', l:'Over 3,5', f:P},
+  {k:'pGG', l:'Goal', f:P}, {k:'pNG', l:'No Goal', f:P},
+  {grp:'Primo / secondo tempo'},
+  {k:'pPT0', l:'Over 0,5 1°T', f:P}, {k:'pST0', l:'Over 0,5 2°T', f:P},
+  {k:'pPT1', l:'Over 1,5 1°T', f:P}, {k:'pST1', l:'Over 1,5 2°T', f:P},
+  {k:'pPT2', l:'Over 2,5 1°T', f:P}, {k:'pST2', l:'Over 2,5 2°T', f:P},
+  {grp:'Cartellini'},
+  {k:'Y',  l:'Ammonizioni', f:(v,t)=>t.Gc?v:'n.d.'}, {k:'mY', l:'Media ammonizioni', f:D2},
+  {k:'R',  l:'Espulsioni',  f:(v,t)=>t.Gc?v:'n.d.'},
+];
+function renderCompare(){
+  const ts = cmp.filter(Boolean).map(n=>TEAMS[n]).filter(Boolean);
+  if(ts.length < 2){ $('cmpResult').innerHTML = `<div class="empty">Scegli almeno 2 squadre per vedere il confronto.</div>`; return; }
+  const head = `<tr><th class="left">Statistica</th>${ts.map(t=>`<th>${esc(t.short)}<br><small style="font-family:Inter;font-weight:400;opacity:.7;text-transform:none">${lgFlag(t.league)} ${lgName(t.league)}</small></th>`).join('')}</tr>`;
+  const body = CMP_ROWS.map(r=>{
+    if(r.grp) return `<tr class="grp"><td colspan="${ts.length+1}">${r.grp}</td></tr>`;
+    let bestV = null;
+    if(r.best){ const vals = ts.map(t=>t[r.k]); bestV = r.best==='max' ? Math.max(...vals) : Math.min(...vals); }
+    return `<tr><td class="left"><b>${r.l}</b></td>${ts.map(t=>{
+      const v = t[r.k];
+      const cls = bestV!==null && v===bestV ? 'best' : '';
+      return `<td class="${cls}">${r.html ? r.html(v) : r.f ? r.f(v,t) : v}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+  $('cmpResult').innerHTML = `<div class="tw"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <p class="muted" style="font-size:12px;margin-top:8px">In giallo il valore migliore. Statistiche sulle ultime ${N_MATCHES} partite di campionato di ogni squadra.</p>`;
+}
+
+/* ================= PAGINA SQUADRE ================= */
+let sqLeague = 'it.1', sqSort = {k:'PTS', dir:-1};
+const SQ_COLS = [
+  {k:'#',      l:'#',        nosort:true},
+  {k:'short',  l:'Squadra',  left:true},
+  {k:'league', l:'',         title:'Campionato'},
+  {k:'G',      l:'G'},
+  {k:'V',      l:'V'},
+  {k:'N',      l:'N'},
+  {k:'P',      l:'P'},
+  {k:'GF',     l:'GF'},
+  {k:'GS',     l:'GS'},
+  {k:'DR',     l:'DR'},
+  {k:'PTS',    l:'Pt'},
+  {k:'pO0',    l:'O 0,5', ov:true},
+  {k:'pO1',    l:'O 1,5', ov:true},
+  {k:'pO2',    l:'O 2,5', ov:true},
+  {k:'pO3',    l:'O 3,5', ov:true},
+  {k:'form',   l:'Ultime 5', nosort:true},
+];
+function buildChips(){
+  const opts = [{code:'all',name:'Tutti',flag:''}, ...LEAGUES];
+  $('lgChips').innerHTML = opts.map(l=>`<button class="chip ${l.code===sqLeague?'on':''}" data-c="${l.code}">${l.flag} ${l.name}</button>`).join('');
+  $('lgChips').onclick = e => { const c = e.target.closest('.chip'); if(!c) return; sqLeague = c.dataset.c; buildChips(); renderSquadre(); };
+}
+function renderSquadre(){
+  const q = norm($('sqFilter').value.trim());
+  let list = TEAM_LIST.filter(t => t.active && (sqLeague==='all' || t.league===sqLeague) && (!q || norm(t.name).includes(q) || norm(t.short).includes(q)));
+  const k = sqSort.k;
+  list.sort((a,b)=>{
+    let x=a[k], y=b[k];
+    if(k==='league'){ x=lgName(x); y=lgName(y); }
+    if(typeof x==='string') return x.localeCompare(y)*sqSort.dir;
+    x = x==null?-1:x; y = y==null?-1:y;
+    return (x-y)*sqSort.dir || (b.DR-a.DR) || (b.GF-a.GF);
+  });
+  $('sqCount').textContent = `${list.length} squadre`;
+  const head = `<tr>${SQ_COLS.map(c=>`<th class="${c.left?'left':''} ${c.ov?'ov':''}" data-k="${c.nosort?'':c.k}" title="${c.title||''}">${c.l} ${sqSort.k===c.k?`<span class="arr">${sqSort.dir<0?'▼':'▲'}</span>`:''}</th>`).join('')}</tr>`;
+  const body = list.length ? list.map((t,i)=>`<tr>
+      <td class="pos">${i+1}</td>
+      <td class="left"><span class="tname" data-n="${esc(t.name)}">${esc(t.short)}</span></td>
+      <td class="flag" title="${lgName(t.league)}">${lgFlag(t.league)}</td>
+      <td>${t.G}</td><td class="c-w">${t.V}</td><td class="c-d">${t.N}</td><td class="c-l">${t.P}</td>
+      <td>${t.GF}</td><td>${t.GS}</td><td>${(t.DR>0?'+':'')+t.DR}</td><td><b>${t.PTS}</b></td>
+      <td>${heat(t.pO0)}</td><td>${heat(t.pO1)}</td><td>${heat(t.pO2)}</td><td>${heat(t.pO3)}</td>
+      <td>${formHTML(t.form)}</td></tr>`).join('')
+    : `<tr><td colspan="${SQ_COLS.length}" class="empty">Nessuna squadra trovata</td></tr>`;
+  $('sqTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+$('sqTable').addEventListener('click', e => {
+  const th = e.target.closest('th[data-k]');
+  if(th && th.dataset.k){
+    const k = th.dataset.k;
+    sqSort = sqSort.k===k ? {k, dir:-sqSort.dir} : {k, dir: (k==='short'||k==='league'||k==='GS'||k==='P') ? 1 : -1};
+    renderSquadre(); return;
+  }
+  const n = e.target.closest('.tname'); if(n) openModal(n.dataset.n);
+});
+$('sqFilter').addEventListener('input', renderSquadre);
+
+/* ================= NAV ================= */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active', x===b));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='page-'+b.dataset.page));
+});
+$('btnUpd').onclick = () => loadData(true);
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+/* ================= START ================= */
+attachSearch($('mainSearch'), $('mainSugg'), t => { $('mainSearch').value = t.short; showTeam(t.name); });
+buildCompareInputs();
+buildChips();
+loadData(false);
+</script>
+</body>
+</html>
