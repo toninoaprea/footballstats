@@ -132,6 +132,22 @@ tbody tr:hover{background:#fff8dc}
 .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;background:#e6eef9;color:var(--navy2);font-weight:600}
 .ha{font-size:11px;font-weight:700;color:var(--muted)}
 
+/* MULTI-SELECT CAMPIONATI */
+.ms{position:relative}
+.ms-btn{padding:9px 34px 9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;background:#f8fafd;font-weight:600;color:var(--navy);cursor:pointer;min-width:200px;text-align:left;position:relative;font-family:inherit}
+.ms-btn::after{content:'▾';position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.ms-btn .cnt{background:var(--gold);color:var(--navy);border-radius:10px;padding:0 7px;font-size:12px;margin-left:6px}
+.ms-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);width:min(560px,92vw);max-height:70vh;overflow:auto;padding:12px;display:none}
+.ms.open .ms-panel{display:block}
+.ms-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.ms-actions button{border:1px solid var(--line);background:#f4f7fb;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--navy2)}
+.ms-actions button:hover{background:#e6eef9}
+.ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.ms-country{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.ms-country:hover{color:var(--navy)}
+.ms label{display:flex;align-items:center;gap:7px;font-size:13px;padding:3px 0;cursor:pointer}
+.ms input[type=checkbox]{width:16px;height:16px;accent-color:var(--navy)}
+
 /* MODAL */
 .modal{position:fixed;inset:0;background:rgba(11,37,69,.6);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:30px 12px;overflow:auto}
 .modal.open{display:flex}
@@ -179,7 +195,10 @@ tbody tr:hover{background:#fff8dc}
     <div class="card">
       <div class="card-title"><div class="bar"></div><h2>Squadre</h2><span class="sub" id="sqCount"></span></div>
       <div class="filters">
-        <select id="lgSelect"></select>
+        <div class="ms" id="lgMs">
+          <button class="ms-btn" id="lgBtn" type="button">Serie A</button>
+          <div class="ms-panel" id="lgPanel"></div>
+        </div>
         <div class="chips" id="modeChips">
           <button class="chip on" data-m="gol">Over gol</button>
           <button class="chip" data-m="ang">Over angoli</button>
@@ -609,7 +628,7 @@ function renderCompare(){
 }
 
 /* ================= PAGINA SQUADRE ================= */
-let sqLeague = 'I1', sqMode = 'gol', sqSort = {k:'PTS', dir:-1};
+let sqLeagues = new Set(['I1']), sqMode = 'gol', sqSort = {k:'PTS', dir:-1};
 function sqCols(){
   const base = [
     {k:'#', l:'#', nosort:true}, {k:'short', l:'Squadra', left:true}, {k:'league', l:'', title:'Campionato'},
@@ -621,19 +640,67 @@ function sqCols(){
     : [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}];
   return [...base, ...extra, {k:'form', l:'Ultime 5', nosort:true}];
 }
+// --- scelta di uno o più campionati ---
+try{ const saved = JSON.parse(localStorage.getItem('statcamp_leagues')); if(Array.isArray(saved) && saved.length) sqLeagues = new Set(saved); }catch(e){}
+let presentLeagues = new Set();
+function saveLeagues(){ try{ localStorage.setItem('statcamp_leagues', JSON.stringify([...sqLeagues])); }catch(e){} }
 function buildLeagueSelect(){
-  const sel = $('lgSelect');
-  const present = new Set(TEAM_LIST.filter(t=>t.active).map(t=>t.league));
-  if(!present.has(sqLeague) && sqLeague!=='all') sqLeague = present.has('I1') ? 'I1' : 'all';
+  presentLeagues = new Set(TEAM_LIST.filter(t=>t.active).map(t=>t.league));
+  sqLeagues = new Set([...sqLeagues].filter(c => presentLeagues.has(c)));
+  if(!sqLeagues.size) sqLeagues.add(presentLeagues.has('I1') ? 'I1' : [...presentLeagues][0]);
   const countries = [...new Set(LEAGUES.map(l=>l.country))];
-  sel.innerHTML = `<option value="all">🌍 Tutti i campionati</option>` + countries.map(c => {
-    const ls = LEAGUES.filter(l => l.country===c && present.has(l.code));
-    if(c==='Nazionali') return ls.length ? `<optgroup label="Nazionali"><option value="NAZ">🌐 Nazionali</option></optgroup>` : '';
-    return ls.length ? `<optgroup label="${c}">${ls.map(l=>`<option value="${l.code}">${l.name}</option>`).join('')}</optgroup>` : '';
+  const groups = countries.map(c => {
+    const ls = LEAGUES.filter(l => l.country===c && presentLeagues.has(l.code));
+    if(!ls.length) return '';
+    return `<div><div class="ms-country" data-country="${c}">${ls[0].code==='NAZ' ? '🌐' : flag(ls[0].code)} ${c}</div>
+      ${ls.map(l=>`<label><input type="checkbox" value="${l.code}" ${sqLeagues.has(l.code)?'checked':''}> ${l.name}</label>`).join('')}</div>`;
   }).join('');
-  sel.value = sqLeague;
+  $('lgPanel').innerHTML = `<div class="ms-actions">
+      <button type="button" data-act="all">Tutti i club</button>
+      <button type="button" data-act="top">Prime serie</button>
+      <button type="button" data-act="ita">Solo Italia</button>
+      <button type="button" data-act="none">Deseleziona tutto</button>
+    </div><div class="ms-grid">${groups}</div>`;
+  updateLeagueBtn();
 }
-$('lgSelect').addEventListener('change', e => { sqLeague = e.target.value; renderSquadre(); });
+function updateLeagueBtn(){
+  const sel = [...sqLeagues];
+  let txt;
+  if(!sel.length) txt = 'Nessun campionato';
+  else if(sel.length===1) txt = sel[0]==='NAZ' ? '🌐 Nazionali' : `${flag(sel[0])} ${lgName(sel[0])}`;
+  else txt = `Campionati <span class="cnt">${sel.length}</span>`;
+  $('lgBtn').innerHTML = txt;
+}
+function setLeagues(list){
+  sqLeagues = new Set(list.filter(c => presentLeagues.has(c)));
+  $('lgPanel').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = sqLeagues.has(cb.value));
+  saveLeagues(); updateLeagueBtn(); renderSquadre();
+}
+$('lgBtn').addEventListener('click', e => { e.stopPropagation(); $('lgMs').classList.toggle('open'); });
+document.addEventListener('click', e => { if(!e.target.closest('#lgMs')) $('lgMs').classList.remove('open'); });
+$('lgPanel').addEventListener('change', e => {
+  const cb = e.target.closest('input[type=checkbox]'); if(!cb) return;
+  cb.checked ? sqLeagues.add(cb.value) : sqLeagues.delete(cb.value);
+  saveLeagues(); updateLeagueBtn(); renderSquadre();
+});
+$('lgPanel').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if(b){
+    const act = b.dataset.act, all = [...presentLeagues];
+    if(act==='all')  setLeagues(all.filter(c => c!=='NAZ'));
+    if(act==='top')  setLeagues(['I1','E0','SP1','D1','F1','N1','P1','B1','T1','G1','SC0']);
+    if(act==='ita')  setLeagues(['I1','I2']);
+    if(act==='none') setLeagues([]);
+    return;
+  }
+  const c = e.target.closest('[data-country]');   // clic sul nome della nazione = seleziona/deseleziona tutta la nazione
+  if(c){
+    const codes = LEAGUES.filter(l => l.country===c.dataset.country && presentLeagues.has(l.code)).map(l=>l.code);
+    const allOn = codes.every(x => sqLeagues.has(x));
+    codes.forEach(x => allOn ? sqLeagues.delete(x) : sqLeagues.add(x));
+    setLeagues([...sqLeagues]);
+  }
+});
 $('modeChips').addEventListener('click', e => {
   const c = e.target.closest('.chip'); if(!c) return;
   sqMode = c.dataset.m;
@@ -644,7 +711,7 @@ $('modeChips').addEventListener('click', e => {
 function renderSquadre(){
   const cols = sqCols();
   const q = norm($('sqFilter').value.trim());
-  let list = TEAM_LIST.filter(t => t.active && (sqLeague==='all' ? t.league!=='NAZ' : t.league===sqLeague) && (!q || norm(t.name).includes(q) || norm(t.short).includes(q)));
+  let list = TEAM_LIST.filter(t => t.active && sqLeagues.has(t.league) && (!q || norm(t.name).includes(q) || norm(t.short).includes(q)));
   const k = sqSort.k;
   list.sort((a,b)=>{
     let x=a[k], y=b[k];
@@ -671,7 +738,7 @@ function renderSquadre(){
     }
   };
   const body = list.length ? list.map((t,i)=>`<tr>${cols.map(c=>cell(c,t,i)).join('')}</tr>`).join('')
-    : `<tr><td colspan="${cols.length}" class="empty">Nessuna squadra trovata</td></tr>`;
+    : `<tr><td colspan="${cols.length}" class="empty">${sqLeagues.size ? 'Nessuna squadra trovata' : 'Scegli almeno un campionato dal menu'}</td></tr>`;
   $('sqTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
 }
 $('sqTable').addEventListener('click', e => {
