@@ -10,7 +10,9 @@ import glob
 import io
 import json
 import os
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 # ---- CAMPIONATI da scaricare (codici football-data.co.uk) ----
 CAMPIONATI = [
@@ -69,35 +71,61 @@ def numero(v):
         return None
 
 
+def scarica(url, limite=60):
+    """Scarica un file; rinuncia se il server è troppo lento (oltre `limite` secondi)."""
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    inizio = time.time()
+    parti = []
+    with urllib.request.urlopen(req, timeout=20) as r:
+        while True:
+            if time.time() - inizio > limite:
+                raise TimeoutError(f"troppo lento (oltre {limite} secondi)")
+            pezzo = r.read(65536)
+            if not pezzo:
+                break
+            parti.append(pezzo)
+    return b"".join(parti).decode("utf-8-sig", errors="replace")
+
+
+def scarica_campionato(lavoro):
+    camp, stag = lavoro
+    url = f"https://www.football-data.co.uk/mmz4281/{stag}/{camp}.csv"
+    try:
+        testo = scarica(url)
+        squadre, righe = [], []
+        for riga in csv.DictReader(io.StringIO(testo)):
+            casa, trasf = (riga.get("HomeTeam") or "").strip(), (riga.get("AwayTeam") or "").strip()
+            if not casa or not trasf or numero(riga.get("FTHG")) is None:
+                continue
+            try:
+                d = data_iso(riga["Date"])
+            except Exception:
+                continue
+            for s in (casa, trasf):
+                if s not in squadre:
+                    squadre.append(s)
+            righe.append([d, squadre.index(casa), squadre.index(trasf)]
+                         + [numero(riga.get(c)) for c in COLONNE])
+        if righe:
+            print("OK  ", camp, stag, len(righe), "partite", flush=True)
+            return camp, stag, {"teams": squadre, "rows": righe}
+        print("--  ", camp, stag, "nessuna partita", flush=True)
+    except Exception as e:
+        print("ERR ", camp, stag, e, flush=True)
+    return camp, stag, None
+
+
 dati = {}
-for camp in CAMPIONATI:
-    for stag in stagioni:
-        url = f"https://www.football-data.co.uk/mmz4281/{stag}/{camp}.csv"
-        blocco = None
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=30) as r:
-                testo = r.read().decode("utf-8-sig", errors="replace")
-            squadre, righe = [], []
-            for riga in csv.DictReader(io.StringIO(testo)):
-                casa, trasf = (riga.get("HomeTeam") or "").strip(), (riga.get("AwayTeam") or "").strip()
-                if not casa or not trasf or numero(riga.get("FTHG")) is None:
-                    continue
-                for s in (casa, trasf):
-                    if s not in squadre:
-                        squadre.append(s)
-                righe.append([data_iso(riga["Date"]), squadre.index(casa), squadre.index(trasf)]
-                             + [numero(riga.get(c)) for c in COLONNE])
-            if righe:
-                blocco = {"teams": squadre, "rows": righe}
-                print("OK  ", camp, stag, len(righe), "partite")
-        except Exception as e:
-            print("ERR ", camp, stag, e)
-        if blocco is None and stag in vecchio.get(camp, {}):
-            blocco = vecchio[camp][stag]
-            print("    ", camp, stag, "uso la copia precedente")
-        if blocco:
-            dati.setdefault(camp, {})[stag] = blocco
+lavori = [(c, s) for c in CAMPIONATI for s in stagioni]
+print("Scarico", len(lavori), "file…", flush=True)
+with ThreadPoolExecutor(max_workers=6) as pool:     # 6 download alla volta
+    risultati = list(pool.map(scarica_campionato, lavori))
+for camp, stag, blocco in risultati:
+    if blocco is None and stag in vecchio.get(camp, {}):
+        blocco = vecchio[camp][stag]
+        print("    ", camp, stag, "uso la copia precedente")
+    if blocco:
+        dati.setdefault(camp, {})[stag] = blocco
 
 # ---- NAZIONALI (solo risultati finali) ----
 # archivio pubblico di tutte le partite internazionali: github.com/martj42/international_results
@@ -132,9 +160,7 @@ TORNEI_IT = {
 PARTITE_PER_SQUADRA = 100
 DAL_ANNO = "2012"  # le partite più vecchie non servono (100 partite = circa 10 anni per una nazionale)
 try:
-    req = urllib.request.Request(URL_NAZ, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        testo = r.read().decode("utf-8-sig", errors="replace")
+    testo = scarica(URL_NAZ, limite=120)
     partite = []
     for riga in csv.DictReader(io.StringIO(testo)):
         gc, gt = numero(riga.get("home_score")), numero(riga.get("away_score"))
