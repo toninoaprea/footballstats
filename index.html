@@ -41,13 +41,16 @@ main{max-width:1300px;margin:0 auto;padding:22px 16px 60px}
 .card-title .bar{width:6px;height:24px;background:var(--gold);border-radius:3px}
 .card-title .sub{font-size:13px;color:var(--muted);margin-left:auto}
 
+/* FLAGS */
+.fl{width:22px;height:15px;object-fit:cover;border-radius:3px;vertical-align:-2px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+
 /* SEARCH */
 .search-wrap{position:relative}
 .search{width:100%;padding:14px 16px 14px 46px;font-size:16px;border:2px solid var(--line);border-radius:12px;outline:none;background:#f8fafd}
 .search:focus{border-color:var(--blue);background:#fff}
 .search-ic{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;opacity:.5}
 .sugg{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:300px;overflow:auto;z-index:20;display:none}
-.sugg div{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.sugg div{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
 .sugg div:hover,.sugg div.hl{background:#eef4fd}
 .sugg small{color:var(--muted)}
 
@@ -118,8 +121,9 @@ tbody tr:hover{background:#fff8dc}
 .grp td{background:#e9eff8 !important;font-family:'Oswald';text-transform:uppercase;font-size:12px;color:var(--navy2);text-align:left;padding:6px 8px}
 
 /* FILTERS */
-.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.filters input{padding:9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;outline:none;background:#f8fafd}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filters input,.filters select{padding:9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;outline:none;background:#f8fafd;font-family:inherit}
+.filters select{font-weight:600;color:var(--navy);cursor:pointer}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{padding:7px 12px;border-radius:20px;border:2px solid var(--line);background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
 .chip.on{background:var(--navy);border-color:var(--navy);color:var(--gold)}
@@ -127,7 +131,6 @@ tbody tr:hover{background:#fff8dc}
 .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
 .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;background:#e6eef9;color:var(--navy2);font-weight:600}
 .ha{font-size:11px;font-weight:700;color:var(--muted)}
-.flag{font-size:18px}
 
 /* MODAL */
 .modal{position:fixed;inset:0;background:rgba(11,37,69,.6);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:30px 12px;overflow:auto}
@@ -176,7 +179,11 @@ tbody tr:hover{background:#fff8dc}
     <div class="card">
       <div class="card-title"><div class="bar"></div><h2>Squadre</h2><span class="sub" id="sqCount"></span></div>
       <div class="filters">
-        <div class="chips" id="lgChips"></div>
+        <select id="lgSelect"></select>
+        <div class="chips" id="modeChips">
+          <button class="chip on" data-m="gol">Over gol</button>
+          <button class="chip" data-m="ang">Over angoli</button>
+        </div>
         <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
       </div>
       <div class="tw"><table id="sqTable"></table></div>
@@ -189,24 +196,39 @@ tbody tr:hover{background:#fff8dc}
 <script>
 /* ================= CONFIG ================= */
 const N_MATCHES = 100;
+// code = codice football-data.co.uk · cc = bandiera (flagcdn) · of = codice openfootball (fonte di riserva)
 const LEAGUES = [
-  {code:'it.1', fd:'I1',  name:'Serie A',        flag:'🇮🇹'},
-  {code:'en.1', fd:'E0',  name:'Premier League', flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},
-  {code:'es.1', fd:'SP1', name:'La Liga',        flag:'🇪🇸'},
-  {code:'de.1', fd:'D1',  name:'Bundesliga',     flag:'🇩🇪'},
-  {code:'fr.1', fd:'F1',  name:'Ligue 1',        flag:'🇫🇷'},
-  {code:'pt.1', fd:'P1',  name:'Primeira Liga',  flag:'🇵🇹'},
-  {code:'nl.1', fd:'N1',  name:'Eredivisie',     flag:'🇳🇱'},
+  {code:'I1',  name:'Serie A',          country:'Italia',      cc:'it',     of:'it.1'},
+  {code:'I2',  name:'Serie B',          country:'Italia',      cc:'it'},
+  {code:'E0',  name:'Premier League',   country:'Inghilterra', cc:'gb-eng', of:'en.1'},
+  {code:'E1',  name:'Championship',     country:'Inghilterra', cc:'gb-eng'},
+  {code:'E2',  name:'League One',       country:'Inghilterra', cc:'gb-eng'},
+  {code:'E3',  name:'League Two',       country:'Inghilterra', cc:'gb-eng'},
+  {code:'EC',  name:'National League',  country:'Inghilterra', cc:'gb-eng'},
+  {code:'SP1', name:'La Liga',          country:'Spagna',      cc:'es',     of:'es.1'},
+  {code:'SP2', name:'Segunda División', country:'Spagna',      cc:'es'},
+  {code:'D1',  name:'Bundesliga',       country:'Germania',    cc:'de',     of:'de.1'},
+  {code:'D2',  name:'2. Bundesliga',    country:'Germania',    cc:'de'},
+  {code:'F1',  name:'Ligue 1',          country:'Francia',     cc:'fr',     of:'fr.1'},
+  {code:'F2',  name:'Ligue 2',          country:'Francia',     cc:'fr'},
+  {code:'N1',  name:'Eredivisie',       country:'Olanda',      cc:'nl',     of:'nl.1'},
+  {code:'P1',  name:'Primeira Liga',    country:'Portogallo',  cc:'pt',     of:'pt.1'},
+  {code:'B1',  name:'Pro League',       country:'Belgio',      cc:'be'},
+  {code:'T1',  name:'Süper Lig',        country:'Turchia',     cc:'tr'},
+  {code:'G1',  name:'Super League',     country:'Grecia',      cc:'gr'},
+  {code:'SC0', name:'Premiership',      country:'Scozia',      cc:'gb-sct'},
+  {code:'SC1', name:'Championship',     country:'Scozia',      cc:'gb-sct'},
+  {code:'SC2', name:'League One',       country:'Scozia',      cc:'gb-sct'},
+  {code:'SC3', name:'League Two',       country:'Scozia',      cc:'gb-sct'},
+  {code:'NAZ', name:'Nazionali',        country:'Nazionali',   cc:null},
 ];
-// Fonte 1 (completa): cartella data/ del sito, riempita ogni giorno dal robot GitHub (football-data.co.uk)
-// Fonte 2 (riserva, senza cartellini): openfootball su GitHub
 const OF_SRC = 'https://raw.githubusercontent.com/openfootball/football.json/master/';
 const OF_SEASONS = ['2023-24','2024-25','2025-26','2026-27'];
-const CACHE_KEY = 'statcamp_cache_v2';
+const CACHE_KEY = 'statcamp_cache_v3';
 
 /* ================= STATE ================= */
 let MATCHES = [], TEAMS = {}, TEAM_LIST = [];
-let INFO = {src:'', time:null, cards:false};
+let INFO = {src:'', time:null};
 
 /* ================= UTILS ================= */
 const $ = id => document.getElementById(id);
@@ -216,7 +238,9 @@ const ALIAS = {'FC Internazionale Milano':'Inter','Internazionale Milano':'Inter
 function shortName(n){
   if(ALIAS[n]) return ALIAS[n];
   return n.replace(/\s(18|19|20)\d\d\b/g,'')
-          .replace(/\b(SSC|AC|ACF|AS|US|FC|SS|SSD|UC|CFC|BC|SC|AFC|CF|RC|RCD|SD|UD|CD|SV|VfB|VfL|TSG|RB|OGC|LOSC|AJ|SL|SE|1\.\s*FC|Calcio|Football Club|de Fútbol|Balompié)\b\.?/g,'')
+          .replace(/\b(SSC|ACF|US|SSD|UC|CFC|BC|AFC|RCD|VfB|VfL|TSG|OGC|LOSC|1\.\s*FC|Calcio|Football Club|de Fútbol|Balompié)\b\.?/g,'')
+          .replace(/^(AC|AS|FC|SS|SC|CF|RC|SD|UD|CD|SV|RB|AJ|SL|SE)\s/,'')
+          .replace(/\s(FC|CF|SC|AC)$/,'')
           .replace(/\s+/g,' ').trim() || n;
 }
 function initials(n){ const w = shortName(n).split(' ').filter(Boolean); return (w.length>1 ? w[0][0]+w[1][0] : w[0].slice(0,3)).toUpperCase(); }
@@ -224,56 +248,59 @@ function fmtDate(d){ const [y,m,g] = d.split('-'); return `${g}/${m}/${y.slice(2
 const pct = (n,d) => d ? n/d*100 : null;
 const fp = v => v==null ? 'n.d.' : v.toFixed(0)+'%';
 const lvl = v => v==null ? 'lo' : v>=70 ? 'hi' : v>=50 ? 'mid' : 'lo';
+const comma = x => String(x).replace('.',',');
 function heat(v){
   if(v==null) return '<span class="muted">n.d.</span>';
   const a = Math.max(0, Math.min(1,(v-30)/70));
   return `<span class="heat" style="background:rgba(31,164,99,${(a*0.55).toFixed(2)})">${v.toFixed(0)}%</span>`;
 }
-const lgName = c => (LEAGUES.find(l => l.code===c) || {}).name || c;
-const lgFlag = c => (LEAGUES.find(l => l.code===c) || {}).flag || '';
+const LG = Object.fromEntries(LEAGUES.map(l => [l.code, l]));
+const lgName = c => (LG[c]||{}).name || c;
+const lgFull = c => c==='NAZ' ? 'Nazionali' : LG[c] ? `${LG[c].name} (${LG[c].country})` : c;
+const flag = c => c==='NAZ' ? '<span title="Nazionali">🌐</span>' : LG[c] ? `<img class="fl" src="https://flagcdn.com/w40/${LG[c].cc}.png" alt="${LG[c].country}" title="${esc(lgFull(c))}">` : '';
 const formHTML = f => `<span class="form">${f.map(r=>`<span class="f ${r}">${r}</span>`).join('')}</span>`;
 
 /* ================= LOAD DATA ================= */
-function parseCSV(text, lg, season){
-  const lines = text.replace(/^﻿/,'').split(/\r?\n/).filter(l => l.trim());
-  if(lines.length < 2) return [];
-  const H = lines[0].split(',').map(s=>s.trim());
-  const ix = k => H.indexOf(k);
-  const iD=ix('Date'), iH=ix('HomeTeam'), iA=ix('AwayTeam'), iHG=ix('FTHG'), iAG=ix('FTAG'),
-        iHH=ix('HTHG'), iAH=ix('HTAG'), iHY=ix('HY'), iAY=ix('AY'), iHR=ix('HR'), iAR=ix('AR');
-  const num = (r,i) => (i<0 || r[i]===undefined || r[i].trim()==='') ? null : +r[i];
-  const out = [];
-  for(let k=1;k<lines.length;k++){
-    const r = lines[k].split(',');
-    const hg = num(r,iHG), ag = num(r,iAG);
-    if(hg==null || ag==null || !r[iH]) continue;
-    let d = r[iD].trim();
-    if(!/^\d{4}-/.test(d)){ const [g,m,y] = d.split('/'); d = `${y.length===2?'20'+y:y}-${m.padStart(2,'0')}-${g.padStart(2,'0')}`; }
-    out.push({d, lg, s:season, h:r[iH].trim(), a:r[iA].trim(), hg, ag,
-      hh:num(r,iHH), ah:num(r,iAH), hy:num(r,iHY), ay:num(r,iAY), hr:num(r,iHR), ar:num(r,iAR)});
+// fonte principale: data/partite.json creato dal robot GitHub (football-data.co.uk)
+function parseRepo(json){
+  const cols = json.cols, all = [];
+  const ci = k => cols.indexOf(k);
+  const I = {hg:ci('FTHG'), ag:ci('FTAG'), hh:ci('HTHG'), ah:ci('HTAG'), hc:ci('HC'), ac:ci('AC'),
+             hy:ci('HY'), ay:ci('AY'), hr:ci('HR'), ar:ci('AR'), hs:ci('HS'), as:ci('AS')};
+  for(const [lg, seasons] of Object.entries(json.data)){
+    if(!LG[lg]) continue;
+    for(const [s, blk] of Object.entries(seasons)){
+      for(const r of blk.rows){
+        if(blk.mini){   // nazionali: solo risultato finale
+          all.push({d:r[0], lg, s, h:blk.teams[r[1]], a:blk.teams[r[2]], hg:r[3], ag:r[4], t:blk.tour[r[5]],
+                    hh:null, ah:null, hc:null, ac:null, hy:null, ay:null, hr:null, ar:null});
+          continue;
+        }
+        const v = k => I[k] < 0 ? null : r[3 + I[k]];
+        all.push({d:r[0], lg, s, h:blk.teams[r[1]], a:blk.teams[r[2]],
+          hg:v('hg'), ag:v('ag'), hh:v('hh'), ah:v('ah'), hc:v('hc'), ac:v('ac'),
+          hy:v('hy'), ay:v('ay'), hr:v('hr'), ar:v('ar')});
+      }
+    }
   }
-  return out;
+  return all;
 }
 async function loadFromRepo(){
-  const r = await fetch('data/meta.json?t='+Date.now(), {cache:'no-store'});
+  const r = await fetch('data/partite.json?t='+Date.now(), {cache:'no-store'});
   if(!r.ok) throw new Error('no data');
-  const meta = await r.json();
-  const all = [];
-  await Promise.all(meta.files.map(async f => {
-    const lg = LEAGUES.find(l => l.fd===f.code); if(!lg) return;
-    const res = await fetch('data/'+f.file+'?t='+Date.now(), {cache:'no-store'});
-    if(res.ok) all.push(...parseCSV(await res.text(), lg.code, f.season));
-  }));
+  const text = await r.text();
+  const json = JSON.parse(text);
+  const all = parseRepo(json);
   if(!all.length) throw new Error('empty');
-  return {all, src:'football-data.co.uk', srcTime:meta.updated, cards:true};
+  return {all, text, src:'football-data.co.uk'};
 }
+// fonte di riserva: openfootball (solo risultati e primo tempo, 7 campionati)
 async function loadFromOpenfootball(){
-  const all = [];
-  const jobs = [];
-  for(const lg of LEAGUES) for(const s of OF_SEASONS) jobs.push({lg,s});
+  const all = [], jobs = [];
+  for(const lg of LEAGUES.filter(l=>l.of)) for(const s of OF_SEASONS) jobs.push({lg,s});
   await Promise.all(jobs.map(async ({lg,s}) => {
     try{
-      const r = await fetch(OF_SRC+s+'/'+lg.code+'.json', {cache:'no-store'});
+      const r = await fetch(OF_SRC+s+'/'+lg.of+'.json', {cache:'no-store'});
       if(!r.ok) return;
       const d = await r.json();
       for(const m of d.matches||[]){
@@ -282,18 +309,21 @@ async function loadFromOpenfootball(){
         else if(sc && sc.ft){ ft = sc.ft; ht = sc.ht||null; }
         if(!ft) continue;
         all.push({d:m.date, lg:lg.code, s, h:m.team1, a:m.team2, hg:ft[0], ag:ft[1],
-                  hh:ht?ht[0]:null, ah:ht?ht[1]:null, hy:null, ay:null, hr:null, ar:null});
+                  hh:ht?ht[0]:null, ah:ht?ht[1]:null, hc:null, ac:null, hy:null, ay:null, hr:null, ar:null});
       }
     }catch(e){}
   }));
   if(!all.length) throw new Error('empty');
-  return {all, src:'openfootball', srcTime:null, cards:false};
+  return {all, src:'openfootball'};
 }
 async function loadData(force){
   if(!force){
     try{
       const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if(c && c.matches){ MATCHES = c.matches; INFO = c.info; build(); return; }
+      if(c){
+        MATCHES = c.text ? parseRepo(JSON.parse(c.text)) : c.matches;
+        INFO = c.info; build(); return;
+      }
     }catch(e){}
   }
   const btn = $('btnUpd');
@@ -303,8 +333,10 @@ async function loadData(force){
   btn.classList.remove('spin');
   if(!res){ $('status').textContent = '⚠️ Impossibile scaricare i dati. Controlla la connessione.'; return; }
   MATCHES = res.all;
-  INFO = {src:res.src, time:new Date().toISOString(), srcTime:res.srcTime, cards:res.cards};
-  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({matches:MATCHES, info:INFO})); }catch(e){}
+  INFO = {src:res.src, time:new Date().toISOString()};
+  try{
+    localStorage.setItem(CACHE_KEY, JSON.stringify(res.text ? {text:res.text, info:INFO} : {matches:MATCHES, info:INFO}));
+  }catch(e){ try{ localStorage.removeItem(CACHE_KEY); }catch(e2){} }
   build();
 }
 
@@ -329,14 +361,16 @@ function build(){
     return t;
   });
   const last = MATCHES[0] ? fmtDate(MATCHES[0].d) : '-';
-  $('status').innerHTML = `${TEAM_LIST.filter(t=>t.active).length} squadre · ultima partita: <b>${last}</b> · fonte: ${INFO.src}${INFO.cards?'':' (senza cartellini)'} · aggiornato ${INFO.time ? new Date(INFO.time).toLocaleString('it-IT') : '-'}`;
+  const full = INFO.src === 'football-data.co.uk';
+  $('status').innerHTML = `${TEAM_LIST.filter(t=>t.active).length} squadre · ultima partita: <b>${last}</b> · fonte: ${INFO.src}${full?'':' (senza cartellini e angoli)'} · aggiornato ${INFO.time ? new Date(INFO.time).toLocaleString('it-IT') : '-'}`;
+  buildLeagueSelect();
   renderSquadre(); renderCompare(); if(currentTeam && TEAMS[currentTeam]) showTeam(currentTeam);
 }
 
-const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5];
+const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5], COV = [7.5,8.5,9.5,10.5,11.5];
 function calc(t){
-  let V=0,N=0,P=0,GF=0,GS=0,GG=0,Gh=0,Gc=0,Y=0,R=0,YT=0,RT=0;
-  const o=[0,0,0,0], pt=[0,0,0], st=[0,0,0], form=[];
+  let V=0,N=0,P=0,GF=0,GS=0,GG=0,Gh=0,Gc=0,Y=0,R=0,YT=0,Gk=0,CF=0,CA=0;
+  const o=OV.map(()=>0), pt=HOV.map(()=>0), st=HOV.map(()=>0), co=COV.map(()=>0), form=[];
   for(const m of t.matches){
     const home = m.h===t.name;
     const gf = home?m.hg:m.ag, gs = home?m.ag:m.hg, tot = m.hg+m.ag;
@@ -353,16 +387,24 @@ function calc(t){
     if(m.hy!=null && m.ay!=null){
       Gc++;
       Y += home?m.hy:m.ay; R += home?(m.hr||0):(m.ar||0);
-      YT += m.hy+m.ay; RT += (m.hr||0)+(m.ar||0);
+      YT += m.hy+m.ay;
+    }
+    if(m.hc!=null && m.ac!=null){
+      Gk++;
+      const cf = home?m.hc:m.ac, ca = home?m.ac:m.hc, ct = m.hc+m.ac;
+      CF += cf; CA += ca;
+      COV.forEach((x,i)=>{ if(ct>x) co[i]++; });
     }
   }
   const G = t.matches.length;
-  const s = {G,V,N,P,GF,GS,DR:GF-GS,PTS:V*3+N,GG,NG:G-GG,Gh,Gc,Y,R,YT,RT,o,pt,st,form,
+  const s = {G,V,N,P,GF,GS,DR:GF-GS,PTS:V*3+N,GG,NG:G-GG,Gh,Gc,Y,R,YT,Gk,CF,CA,o,pt,st,co,form,
     pV:pct(V,G), pN:pct(N,G), pP:pct(P,G), mGF:G?GF/G:0, mGS:G?GS/G:0,
     pGG:pct(GG,G), pNG:pct(G-GG,G),
-    mY:Gc?Y/Gc:null, mYT:Gc?YT/Gc:null, pR:pct(R,Gc)};
+    mY:Gc?Y/Gc:null, mYT:Gc?YT/Gc:null, pR:pct(R,Gc),
+    mCF:Gk?CF/Gk:null, mCA:Gk?CA/Gk:null, mCT:Gk?(CF+CA)/Gk:null};
   OV.forEach((x,i)=> s['pO'+i] = pct(o[i],G));
   HOV.forEach((x,i)=>{ s['pPT'+i] = pct(pt[i],Gh); s['pST'+i] = pct(st[i],Gh); });
+  COV.forEach((x,i)=> s['pC'+i] = pct(co[i],Gk));
   return s;
 }
 
@@ -379,7 +421,7 @@ function attachSearch(input, box, onPick){
   const draw = () => {
     list = findTeams(input.value); idx = -1;
     if(!list.length){ box.style.display='none'; return; }
-    box.innerHTML = list.map((t,i)=>`<div data-i="${i}"><span>${esc(t.short)}</span><small>${lgFlag(t.league)} ${lgName(t.league)}${t.active?'':' · non più in campionato'}</small></div>`).join('');
+    box.innerHTML = list.map((t,i)=>`<div data-i="${i}"><span>${esc(t.short)}</span><small>${flag(t.league)} ${lgName(t.league)}${t.active?'':' · non più in campionato'}</small></div>`).join('');
     box.style.display='block';
   };
   input.addEventListener('input', draw);
@@ -411,7 +453,12 @@ function halfCell(n,d){
   const p = pct(n,d);
   return `<td><b>${fp(p)}</b><span class="pbar"><div class="${lvl(p)}" style="width:${p||0}%"></div></span><br><small class="muted">${d?n+'/'+d:''}</small></td>`;
 }
+let naTeam = null;
+const naBox = what => naTeam && naTeam.league==='NAZ'
+  ? `<div class="na">${what} non ci sono per le Nazionali: per loro ci sono solo i risultati finali.</div>`
+  : `<div class="na">${what} non ci sono con la fonte attuale (${INFO.src}). Compaiono quando il robot GitHub scarica i dati da football-data.co.uk.</div>`;
 function teamCardHTML(t){
+  naTeam = t;
   const rows = t.matches.map(m=>{
     const home = m.h===t.name;
     const opp = home ? m.a : m.h;
@@ -419,11 +466,20 @@ function teamCardHTML(t){
     const r = gf>gs?'V':gf<gs?'P':'N';
     const y = home?m.hy:m.ay, rr = home?m.hr:m.ar;
     const cards = y==null ? '<span class="muted">–</span>' : `<span class="cards"><span class="yc"></span>${y}${rr?`<span class="rc"></span>${rr}`:''}</span>`;
-    return `<tr><td class="muted">${fmtDate(m.d)}</td><td><span class="tag">${lgName(m.lg)}</span></td>
+    const corners = m.hc==null ? '<span class="muted">–</span>' : `${m.hc} - ${m.ac}`;
+    return `<tr><td class="muted">${fmtDate(m.d)}</td><td><span class="tag">${esc(m.t || lgName(m.lg))}</span></td>
       <td class="ha">${home?'CASA':'TRASF.'}</td><td class="left">${esc(shortName(opp))}</td>
       <td class="res">${m.hg} - ${m.ag}</td><td class="muted">${m.hh!=null?`(${m.hh}-${m.ah})`:''}</td>
-      <td>${cards}</td><td><span class="f ${r}">${r}</span></td></tr>`;
+      <td>${corners}</td><td>${cards}</td><td><span class="f ${r}">${r}</span></td></tr>`;
   }).join('');
+
+  const cornersHTML = t.Gk ? `
+    <div class="pgrid">${COV.map((x,i)=>pbox('Over '+comma(x), t.co[i], t.Gk)).join('')}</div>
+    <div class="kpis" style="margin:10px 0 0">
+      <div class="kpi"><div class="v">${t.mCF.toFixed(2)}</div><div class="l">Media angoli a favore</div></div>
+      <div class="kpi"><div class="v">${t.mCA.toFixed(2)}</div><div class="l">Media angoli contro</div></div>
+      <div class="kpi"><div class="v">${t.mCT.toFixed(2)}</div><div class="l">Media angoli totali</div></div>
+    </div>` : naBox('Gli angoli');
 
   const cardsHTML = t.Gc ? `
     <div class="kpis" style="margin-bottom:0">
@@ -432,14 +488,12 @@ function teamCardHTML(t){
       <div class="kpi"><div class="v" style="color:var(--loss)">${t.R}</div><div class="l">Espulsioni squadra</div></div>
       <div class="kpi"><div class="v">${fp(t.pR)}</div><div class="l">Partite con espulsione</div></div>
       <div class="kpi"><div class="v">${t.mYT.toFixed(2)}</div><div class="l">Media gialli a partita (tot.)</div></div>
-    </div>
-    <p class="muted" style="font-size:11px;margin-top:6px">Calcolato su ${t.Gc} partite con dati cartellini.</p>`
-    : `<div class="na">Ammonizioni ed espulsioni non disponibili con la fonte attuale (${INFO.src}). Compaiono quando il robot GitHub scarica i dati da football-data.co.uk.</div>`;
+    </div>` : naBox('Ammonizioni ed espulsioni');
 
   return `
   <div class="team-head">
     <div class="crest">${initials(t.name)}</div>
-    <div><h3>${esc(t.short)}</h3><div class="lg">${lgFlag(t.league)} ${lgName(t.league)} · ultime ${t.G} partite${t.active?'':' · non più in questo campionato'}</div></div>
+    <div><h3>${esc(t.short)}</h3><div class="lg">${flag(t.league)} ${lgFull(t.league)} · ultime ${t.G} partite${t.active?'':' · non più in questo campionato'}</div></div>
     <div style="margin-left:auto">${formHTML(t.form)}</div>
   </div>
   <div class="wdl-bar"><div style="width:${t.pV}%;background:var(--win)"></div><div style="width:${t.pN}%;background:var(--draw)"></div><div style="width:${t.pP}%;background:var(--loss)"></div></div>
@@ -453,7 +507,7 @@ function teamCardHTML(t){
   </div>
 
   <div class="sec-title">Over <small>gol totali della partita</small></div>
-  <div class="pgrid">${OV.map((x,i)=>pbox('Over '+String(x).replace('.',','), t.o[i], t.G)).join('')}</div>
+  <div class="pgrid">${OV.map((x,i)=>pbox('Over '+comma(x), t.o[i], t.G)).join('')}</div>
 
   <div class="two">
     <div>
@@ -461,20 +515,23 @@ function teamCardHTML(t){
       <div class="pgrid">${pbox('Goal', t.GG, t.G)}${pbox('No Goal', t.NG, t.G)}</div>
     </div>
     <div>
-      <div class="sec-title">Primo / secondo tempo <small>${t.Gh} partite con dati</small></div>
+      <div class="sec-title">Primo / secondo tempo <small>${t.Gh ? t.Gh+' partite con dati' : ''}</small></div>
       ${t.Gh ? `<div class="tw"><table class="half">
         <thead><tr><th class="left"></th><th>1° tempo</th><th>2° tempo</th></tr></thead>
-        <tbody>${HOV.map((x,i)=>`<tr><td class="left"><b>Over ${String(x).replace('.',',')}</b></td>${halfCell(t.pt[i],t.Gh)}${halfCell(t.st[i],t.Gh)}</tr>`).join('')}</tbody>
-      </table></div>` : `<div class="na">Risultati del primo tempo non disponibili.</div>`}
+        <tbody>${HOV.map((x,i)=>`<tr><td class="left"><b>Over ${comma(x)}</b></td>${halfCell(t.pt[i],t.Gh)}${halfCell(t.st[i],t.Gh)}</tr>`).join('')}</tbody>
+      </table></div>` : naBox('I risultati del primo tempo')}
     </div>
   </div>
 
-  <div class="sec-title">Ammonizioni / Espulsioni</div>
+  <div class="sec-title">Angoli <small>${t.Gk ? `angoli totali della partita · ${t.Gk} partite con dati` : ''}</small></div>
+  ${cornersHTML}
+
+  <div class="sec-title">Ammonizioni / Espulsioni <small>${t.Gc ? `${t.Gc} partite con dati` : ''}</small></div>
   ${cardsHTML}
 
   <div class="sec-title">Ultime ${t.G} partite</div>
   <div class="tw" style="max-height:420px;overflow:auto"><table>
-    <thead><tr><th>Data</th><th>Camp.</th><th></th><th class="left">Avversario</th><th>Ris.</th><th>1°T</th><th>Cart.</th><th></th></tr></thead>
+    <thead><tr><th>Data</th><th>${t.league==='NAZ'?'Torneo':'Camp.'}</th><th></th><th class="left">Avversario</th><th>Ris.</th><th>1°T</th><th>Angoli</th><th>Cart.</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 function showTeam(name){
@@ -522,12 +579,13 @@ const CMP_ROWS = [
   {k:'DR',  l:'Differenza reti', best:'max', f:v=>(v>0?'+':'')+v},
   {k:'form',l:'Ultime 5',        html:formHTML},
   {grp:'Over / Goal'},
-  {k:'pO0', l:'Over 0,5', f:P}, {k:'pO1', l:'Over 1,5', f:P}, {k:'pO2', l:'Over 2,5', f:P}, {k:'pO3', l:'Over 3,5', f:P},
+  ...OV.map((x,i)=>({k:'pO'+i, l:'Over '+comma(x), f:P})),
   {k:'pGG', l:'Goal', f:P}, {k:'pNG', l:'No Goal', f:P},
   {grp:'Primo / secondo tempo'},
-  {k:'pPT0', l:'Over 0,5 1°T', f:P}, {k:'pST0', l:'Over 0,5 2°T', f:P},
-  {k:'pPT1', l:'Over 1,5 1°T', f:P}, {k:'pST1', l:'Over 1,5 2°T', f:P},
-  {k:'pPT2', l:'Over 2,5 1°T', f:P}, {k:'pST2', l:'Over 2,5 2°T', f:P},
+  ...HOV.flatMap((x,i)=>[{k:'pPT'+i, l:`Over ${comma(x)} 1°T`, f:P}, {k:'pST'+i, l:`Over ${comma(x)} 2°T`, f:P}]),
+  {grp:'Angoli'},
+  ...COV.map((x,i)=>({k:'pC'+i, l:'Over '+comma(x)+' angoli', f:P})),
+  {k:'mCF', l:'Media angoli a favore', f:D2}, {k:'mCA', l:'Media angoli contro', f:D2}, {k:'mCT', l:'Media angoli totali', f:D2},
   {grp:'Cartellini'},
   {k:'Y',  l:'Ammonizioni', f:(v,t)=>t.Gc?v:'n.d.'}, {k:'mY', l:'Media ammonizioni', f:D2},
   {k:'R',  l:'Espulsioni',  f:(v,t)=>t.Gc?v:'n.d.'},
@@ -535,7 +593,7 @@ const CMP_ROWS = [
 function renderCompare(){
   const ts = cmp.filter(Boolean).map(n=>TEAMS[n]).filter(Boolean);
   if(ts.length < 2){ $('cmpResult').innerHTML = `<div class="empty">Scegli almeno 2 squadre per vedere il confronto.</div>`; return; }
-  const head = `<tr><th class="left">Statistica</th>${ts.map(t=>`<th>${esc(t.short)}<br><small style="font-family:Inter;font-weight:400;opacity:.7;text-transform:none">${lgFlag(t.league)} ${lgName(t.league)}</small></th>`).join('')}</tr>`;
+  const head = `<tr><th class="left">Statistica</th>${ts.map(t=>`<th>${esc(t.short)}<br><small style="font-family:Inter;font-weight:400;opacity:.8;text-transform:none">${flag(t.league)} ${lgName(t.league)}</small></th>`).join('')}</tr>`;
   const body = CMP_ROWS.map(r=>{
     if(r.grp) return `<tr class="grp"><td colspan="${ts.length+1}">${r.grp}</td></tr>`;
     let bestV = null;
@@ -551,33 +609,42 @@ function renderCompare(){
 }
 
 /* ================= PAGINA SQUADRE ================= */
-let sqLeague = 'it.1', sqSort = {k:'PTS', dir:-1};
-const SQ_COLS = [
-  {k:'#',      l:'#',        nosort:true},
-  {k:'short',  l:'Squadra',  left:true},
-  {k:'league', l:'',         title:'Campionato'},
-  {k:'G',      l:'G'},
-  {k:'V',      l:'V'},
-  {k:'N',      l:'N'},
-  {k:'P',      l:'P'},
-  {k:'GF',     l:'GF'},
-  {k:'GS',     l:'GS'},
-  {k:'DR',     l:'DR'},
-  {k:'PTS',    l:'Pt'},
-  {k:'pO0',    l:'O 0,5', ov:true},
-  {k:'pO1',    l:'O 1,5', ov:true},
-  {k:'pO2',    l:'O 2,5', ov:true},
-  {k:'pO3',    l:'O 3,5', ov:true},
-  {k:'form',   l:'Ultime 5', nosort:true},
-];
-function buildChips(){
-  const opts = [{code:'all',name:'Tutti',flag:''}, ...LEAGUES];
-  $('lgChips').innerHTML = opts.map(l=>`<button class="chip ${l.code===sqLeague?'on':''}" data-c="${l.code}">${l.flag} ${l.name}</button>`).join('');
-  $('lgChips').onclick = e => { const c = e.target.closest('.chip'); if(!c) return; sqLeague = c.dataset.c; buildChips(); renderSquadre(); };
+let sqLeague = 'I1', sqMode = 'gol', sqSort = {k:'PTS', dir:-1};
+function sqCols(){
+  const base = [
+    {k:'#', l:'#', nosort:true}, {k:'short', l:'Squadra', left:true}, {k:'league', l:'', title:'Campionato'},
+    {k:'G', l:'G'}, {k:'V', l:'V'}, {k:'N', l:'N'}, {k:'P', l:'P'},
+    {k:'GF', l:'GF'}, {k:'GS', l:'GS'}, {k:'DR', l:'DR'}, {k:'PTS', l:'Pt'},
+  ];
+  const extra = sqMode==='gol'
+    ? OV.map((x,i)=>({k:'pO'+i, l:'O '+comma(x), ov:true, heat:true}))
+    : [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}];
+  return [...base, ...extra, {k:'form', l:'Ultime 5', nosort:true}];
 }
+function buildLeagueSelect(){
+  const sel = $('lgSelect');
+  const present = new Set(TEAM_LIST.filter(t=>t.active).map(t=>t.league));
+  if(!present.has(sqLeague) && sqLeague!=='all') sqLeague = present.has('I1') ? 'I1' : 'all';
+  const countries = [...new Set(LEAGUES.map(l=>l.country))];
+  sel.innerHTML = `<option value="all">🌍 Tutti i campionati</option>` + countries.map(c => {
+    const ls = LEAGUES.filter(l => l.country===c && present.has(l.code));
+    if(c==='Nazionali') return ls.length ? `<optgroup label="Nazionali"><option value="NAZ">🌐 Nazionali</option></optgroup>` : '';
+    return ls.length ? `<optgroup label="${c}">${ls.map(l=>`<option value="${l.code}">${l.name}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  sel.value = sqLeague;
+}
+$('lgSelect').addEventListener('change', e => { sqLeague = e.target.value; renderSquadre(); });
+$('modeChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c) return;
+  sqMode = c.dataset.m;
+  [...$('modeChips').children].forEach(x => x.classList.toggle('on', x===c));
+  if(/^p[OC]\d|^mCT$/.test(sqSort.k)) sqSort = {k:'PTS', dir:-1};
+  renderSquadre();
+});
 function renderSquadre(){
+  const cols = sqCols();
   const q = norm($('sqFilter').value.trim());
-  let list = TEAM_LIST.filter(t => t.active && (sqLeague==='all' || t.league===sqLeague) && (!q || norm(t.name).includes(q) || norm(t.short).includes(q)));
+  let list = TEAM_LIST.filter(t => t.active && (sqLeague==='all' ? t.league!=='NAZ' : t.league===sqLeague) && (!q || norm(t.name).includes(q) || norm(t.short).includes(q)));
   const k = sqSort.k;
   list.sort((a,b)=>{
     let x=a[k], y=b[k];
@@ -587,16 +654,24 @@ function renderSquadre(){
     return (x-y)*sqSort.dir || (b.DR-a.DR) || (b.GF-a.GF);
   });
   $('sqCount').textContent = `${list.length} squadre`;
-  const head = `<tr>${SQ_COLS.map(c=>`<th class="${c.left?'left':''} ${c.ov?'ov':''}" data-k="${c.nosort?'':c.k}" title="${c.title||''}">${c.l} ${sqSort.k===c.k?`<span class="arr">${sqSort.dir<0?'▼':'▲'}</span>`:''}</th>`).join('')}</tr>`;
-  const body = list.length ? list.map((t,i)=>`<tr>
-      <td class="pos">${i+1}</td>
-      <td class="left"><span class="tname" data-n="${esc(t.name)}">${esc(t.short)}</span></td>
-      <td class="flag" title="${lgName(t.league)}">${lgFlag(t.league)}</td>
-      <td>${t.G}</td><td class="c-w">${t.V}</td><td class="c-d">${t.N}</td><td class="c-l">${t.P}</td>
-      <td>${t.GF}</td><td>${t.GS}</td><td>${(t.DR>0?'+':'')+t.DR}</td><td><b>${t.PTS}</b></td>
-      <td>${heat(t.pO0)}</td><td>${heat(t.pO1)}</td><td>${heat(t.pO2)}</td><td>${heat(t.pO3)}</td>
-      <td>${formHTML(t.form)}</td></tr>`).join('')
-    : `<tr><td colspan="${SQ_COLS.length}" class="empty">Nessuna squadra trovata</td></tr>`;
+  const head = `<tr>${cols.map(c=>`<th class="${c.left?'left':''} ${c.ov?'ov':''}" data-k="${c.nosort?'':c.k}" title="${c.title||''}">${c.l} ${sqSort.k===c.k?`<span class="arr">${sqSort.dir<0?'▼':'▲'}</span>`:''}</th>`).join('')}</tr>`;
+  const cell = (c,t,i) => {
+    switch(c.k){
+      case '#': return `<td class="pos">${i+1}</td>`;
+      case 'short': return `<td class="left"><span class="tname" data-n="${esc(t.name)}">${esc(t.short)}</span></td>`;
+      case 'league': return `<td>${flag(t.league)}</td>`;
+      case 'V': return `<td class="c-w">${t.V}</td>`;
+      case 'N': return `<td class="c-d">${t.N}</td>`;
+      case 'P': return `<td class="c-l">${t.P}</td>`;
+      case 'DR': return `<td>${(t.DR>0?'+':'')+t.DR}</td>`;
+      case 'PTS': return `<td><b>${t.PTS}</b></td>`;
+      case 'mCT': return `<td>${D2(t.mCT)}</td>`;
+      case 'form': return `<td>${formHTML(t.form)}</td>`;
+      default: return `<td>${c.heat ? heat(t[c.k]) : t[c.k]}</td>`;
+    }
+  };
+  const body = list.length ? list.map((t,i)=>`<tr>${cols.map(c=>cell(c,t,i)).join('')}</tr>`).join('')
+    : `<tr><td colspan="${cols.length}" class="empty">Nessuna squadra trovata</td></tr>`;
   $('sqTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
 }
 $('sqTable').addEventListener('click', e => {
@@ -621,7 +696,6 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); }
 /* ================= START ================= */
 attachSearch($('mainSearch'), $('mainSugg'), t => { $('mainSearch').value = t.short; showTeam(t.name); });
 buildCompareInputs();
-buildChips();
 loadData(false);
 </script>
 </body>
