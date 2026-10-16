@@ -213,6 +213,7 @@ tbody tr:hover{background:#fff8dc}
           <button class="chip" data-m="gtempi">Goal 1T / 2T</button>
           <button class="chip" data-m="ang">Over angoli</button>
           <button class="chip" data-m="rgol">Ritardi gol</button>
+          <button class="chip" data-m="rtempi">Ritardi 1T / 2T</button>
           <button class="chip" data-m="rang">Ritardi angoli</button>
         </div>
         <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
@@ -410,6 +411,8 @@ const RIT = [
   {k:'GG',  l:'Goal',      grp:'gol', need:null, ok:m => m.hg>0 && m.ag>0},
   {k:'GG1', l:'Goal 1°T',  grp:'gol', need:'ht', ok:m => m.hh>0 && m.ah>0},
   {k:'GG2', l:'Goal 2°T',  grp:'gol', need:'ht', ok:m => m.hg-m.hh>0 && m.ag-m.ah>0},
+  ...HOV.map((x,i)=>({k:'T1'+i, l:'Over '+comma(x)+' 1°T', grp:'tempi', need:'ht', ok:m => m.hh+m.ah > x})),
+  ...HOV.map((x,i)=>({k:'T2'+i, l:'Over '+comma(x)+' 2°T', grp:'tempi', need:'ht', ok:m => (m.hg-m.hh)+(m.ag-m.ah) > x})),
   ...COV.map((x,i)=>({k:'C'+i, l:'Over '+comma(x)+' angoli', grp:'ang', need:'ck', ok:m => m.hc+m.ac > x})),
 ];
 function calcRit(t){
@@ -601,11 +604,11 @@ function teamCardHTML(t){
   ${cardsHTML}
 
   <div class="sec-title">Ritardi <small>partite consecutive senza l'evento, dalla più recente</small></div>
-  <div class="two">${['gol','ang'].map(g => {
+  <div class="two">${['gol','tempi','ang'].map(g => {
     const ev = RIT.filter(e => e.grp===g && t.rit[e.k].n);
-    if(!ev.length) return g==='ang' ? `<div>${naBox('Gli angoli')}</div>` : '';
+    if(!ev.length) return g==='ang' ? `<div>${naBox('Gli angoli')}</div>` : g==='tempi' ? `<div>${naBox('I risultati del primo tempo')}</div>` : '';
     return `<div class="tw"><table>
-      <thead><tr><th class="left">${g==='gol'?'Gol':'Angoli'}</th><th>Ritardo</th><th>Massimo</th><th>Ultima volta</th></tr></thead>
+      <thead><tr><th class="left">${{gol:'Gol', tempi:'1° / 2° tempo', ang:'Angoli'}[g]}</th><th>Ritardo</th><th>Massimo</th><th>Ultima volta</th></tr></thead>
       <tbody>${ev.map(e => { const x = t.rit[e.k]; return `<tr><td class="left"><b>${e.l}</b></td><td>${ritHTML(x)}</td>
         <td class="muted">${x.max}</td><td class="muted">${x.last ? fmtDate(x.last) : 'mai nelle ultime '+x.n}</td></tr>`; }).join('')}</tbody></table></div>`;
   }).join('')}</div>
@@ -709,6 +712,7 @@ function sqCols(){
              {k:'pGG2', l:'Goal 2T', ov:true, heat:true, lo:5, hi:45, title:'Goal nel 2° tempo (segnano entrambe)'}],
     ang:    [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}],
     rgol:   ritCols('gol'),
+    rtempi: ritCols('tempi'),
     rang:   ritCols('ang'),
   }[sqMode];
   return [...base, ...extra, {k:'form', l:'Ultime 5', nosort:true}];
@@ -781,6 +785,7 @@ $('modeChips').addEventListener('click', e => {
   if(!sqCols().some(c => c.k===sqSort.k)) sqSort = {k:'PTS', dir:-1};
   if(sqMode==='rgol') sqSort = {k:'rO2', dir:-1};
   if(sqMode==='rang') sqSort = {k:'rC2', dir:-1};
+  if(sqMode==='rtempi') sqSort = {k:'rT10', dir:-1};
   $('ritLegend').style.display = sqMode.startsWith('r') ? 'flex' : 'none';
   renderSquadre();
 });
