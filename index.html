@@ -339,8 +339,8 @@ async function loadData(force){
   if(!force){
     try{
       const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if(c){
-        MATCHES = c.text ? parseRepo(JSON.parse(c.text)) : c.matches;
+      if(c && c.text){   // usa la copia in memoria solo se contiene i dati completi del robot
+        MATCHES = parseRepo(JSON.parse(c.text));
         INFO = c.info; build(); return;
       }
     }catch(e){}
@@ -388,7 +388,7 @@ function build(){
 
 const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5], COV = [7.5,8.5,9.5,10.5,11.5];
 function calc(t){
-  let V=0,N=0,P=0,GF=0,GS=0,GG=0,Gh=0,Gc=0,Y=0,R=0,YT=0,Gk=0,CF=0,CA=0;
+  let V=0,N=0,P=0,GF=0,GS=0,GG=0,GG1=0,GG2=0,Gh=0,Gc=0,Y=0,R=0,YT=0,Gk=0,CF=0,CA=0;
   const o=OV.map(()=>0), pt=HOV.map(()=>0), st=HOV.map(()=>0), co=COV.map(()=>0), form=[];
   for(const m of t.matches){
     const home = m.h===t.name;
@@ -402,6 +402,8 @@ function calc(t){
     if(m.hh!=null && m.ah!=null){
       Gh++; const p = m.hh+m.ah, s2 = tot-p;
       HOV.forEach((x,i)=>{ if(p>x) pt[i]++; if(s2>x) st[i]++; });
+      if(m.hh>0 && m.ah>0) GG1++;                              // goal nel 1° tempo: segnano entrambe
+      if(m.hg-m.hh>0 && m.ag-m.ah>0) GG2++;                    // goal nel 2° tempo: segnano entrambe
     }
     if(m.hy!=null && m.ay!=null){
       Gc++;
@@ -416,9 +418,9 @@ function calc(t){
     }
   }
   const G = t.matches.length;
-  const s = {G,V,N,P,GF,GS,DR:GF-GS,PTS:V*3+N,GG,NG:G-GG,Gh,Gc,Y,R,YT,Gk,CF,CA,o,pt,st,co,form,
+  const s = {G,V,N,P,GF,GS,DR:GF-GS,PTS:V*3+N,GG,NG:G-GG,Gh,GG1,GG2,Gc,Y,R,YT,Gk,CF,CA,o,pt,st,co,form,
     pV:pct(V,G), pN:pct(N,G), pP:pct(P,G), mGF:G?GF/G:0, mGS:G?GS/G:0,
-    pGG:pct(GG,G), pNG:pct(G-GG,G),
+    pGG:pct(GG,G), pNG:pct(G-GG,G), pGG1:pct(GG1,Gh), pGG2:pct(GG2,Gh),
     mY:Gc?Y/Gc:null, mYT:Gc?YT/Gc:null, pR:pct(R,Gc),
     mCF:Gk?CF/Gk:null, mCA:Gk?CA/Gk:null, mCT:Gk?(CF+CA)/Gk:null};
   OV.forEach((x,i)=> s['pO'+i] = pct(o[i],G));
@@ -537,7 +539,8 @@ function teamCardHTML(t){
       <div class="sec-title">Primo / secondo tempo <small>${t.Gh ? t.Gh+' partite con dati' : ''}</small></div>
       ${t.Gh ? `<div class="tw"><table class="half">
         <thead><tr><th class="left"></th><th>1° tempo</th><th>2° tempo</th></tr></thead>
-        <tbody>${HOV.map((x,i)=>`<tr><td class="left"><b>Over ${comma(x)}</b></td>${halfCell(t.pt[i],t.Gh)}${halfCell(t.st[i],t.Gh)}</tr>`).join('')}</tbody>
+        <tbody>${HOV.map((x,i)=>`<tr><td class="left"><b>Over ${comma(x)}</b></td>${halfCell(t.pt[i],t.Gh)}${halfCell(t.st[i],t.Gh)}</tr>`).join('')}
+          <tr><td class="left"><b>Goal</b><br><small class="muted">segnano entrambe</small></td>${halfCell(t.GG1,t.Gh)}${halfCell(t.GG2,t.Gh)}</tr></tbody>
       </table></div>` : naBox('I risultati del primo tempo')}
     </div>
   </div>
@@ -602,6 +605,7 @@ const CMP_ROWS = [
   {k:'pGG', l:'Goal', f:P}, {k:'pNG', l:'No Goal', f:P},
   {grp:'Primo / secondo tempo'},
   ...HOV.flatMap((x,i)=>[{k:'pPT'+i, l:`Over ${comma(x)} 1°T`, f:P}, {k:'pST'+i, l:`Over ${comma(x)} 2°T`, f:P}]),
+  {k:'pGG1', l:'Goal 1°T', f:P}, {k:'pGG2', l:'Goal 2°T', f:P},
   {grp:'Angoli'},
   ...COV.map((x,i)=>({k:'pC'+i, l:'Over '+comma(x)+' angoli', f:P})),
   {k:'mCF', l:'Media angoli a favore', f:D2}, {k:'mCA', l:'Media angoli contro', f:D2}, {k:'mCT', l:'Media angoli totali', f:D2},
