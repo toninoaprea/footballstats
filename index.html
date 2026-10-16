@@ -237,11 +237,16 @@ const N_MATCHES = 100;
 const LEAGUES = [
   {code:'I1',  name:'Serie A',          country:'Italia',      cc:'it',     of:'it.1'},
   {code:'I2',  name:'Serie B',          country:'Italia',      cc:'it'},
+  {code:'I3A', name:'Serie C Girone A', country:'Italia',      cc:'it'},
+  {code:'I3B', name:'Serie C Girone B', country:'Italia',      cc:'it'},
+  {code:'I3C', name:'Serie C Girone C', country:'Italia',      cc:'it'},
   {code:'E0',  name:'Premier League',   country:'Inghilterra', cc:'gb-eng', of:'en.1'},
   {code:'E1',  name:'Championship',     country:'Inghilterra', cc:'gb-eng'},
   {code:'E2',  name:'League One',       country:'Inghilterra', cc:'gb-eng'},
   {code:'E3',  name:'League Two',       country:'Inghilterra', cc:'gb-eng'},
   {code:'EC',  name:'National League',  country:'Inghilterra', cc:'gb-eng'},
+  {code:'EN',  name:'National League North', country:'Inghilterra', cc:'gb-eng'},
+  {code:'ES',  name:'National League South', country:'Inghilterra', cc:'gb-eng'},
   {code:'SP1', name:'La Liga',          country:'Spagna',      cc:'es',     of:'es.1'},
   {code:'SP2', name:'Segunda División', country:'Spagna',      cc:'es'},
   {code:'D1',  name:'Bundesliga',       country:'Germania',    cc:'de',     of:'de.1'},
@@ -251,8 +256,11 @@ const LEAGUES = [
   {code:'N1',  name:'Eredivisie',       country:'Olanda',      cc:'nl',     of:'nl.1'},
   {code:'P1',  name:'Primeira Liga',    country:'Portogallo',  cc:'pt',     of:'pt.1'},
   {code:'B1',  name:'Pro League',       country:'Belgio',      cc:'be'},
+  {code:'B2',  name:'Challenger Pro League', country:'Belgio', cc:'be'},
   {code:'T1',  name:'Süper Lig',        country:'Turchia',     cc:'tr'},
   {code:'G1',  name:'Super League',     country:'Grecia',      cc:'gr'},
+  {code:'NO1', name:'Eliteserien',      country:'Norvegia',    cc:'no'},
+  {code:'NO2', name:'OBOS-ligaen',      country:'Norvegia',    cc:'no'},
   {code:'SC0', name:'Premiership',      country:'Scozia',      cc:'gb-sct'},
   {code:'SC1', name:'Championship',     country:'Scozia',      cc:'gb-sct'},
   {code:'SC2', name:'League One',       country:'Scozia',      cc:'gb-sct'},
@@ -766,7 +774,7 @@ $('lgPanel').addEventListener('click', e => {
     const act = b.dataset.act, all = [...presentLeagues];
     if(act==='all')  setLeagues(all.filter(c => c!=='NAZ'));
     if(act==='top')  setLeagues(['I1','E0','SP1','D1','F1','N1','P1','B1','T1','G1','SC0']);
-    if(act==='ita')  setLeagues(['I1','I2']);
+    if(act==='ita')  setLeagues(['I1','I2','I3A','I3B','I3C']);
     if(act==='none') setLeagues([]);
     return;
   }
