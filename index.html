@@ -132,6 +132,15 @@ tbody tr:hover{background:#fff8dc}
 .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;background:#e6eef9;color:var(--navy2);font-weight:600}
 .ha{font-size:11px;font-weight:700;color:var(--muted)}
 
+/* RITARDI */
+.rit{font-family:'Oswald';font-size:15px;display:inline-block;min-width:34px;padding:2px 7px;border-radius:6px}
+.rit.rec{background:var(--loss);color:#fff}
+.rit.alto{background:#ffd9a8;color:#8a4b00}
+.rit.na{font-family:'Inter';font-size:12px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+
 /* MULTI-SELECT CAMPIONATI */
 .ms{position:relative}
 .ms-btn{padding:9px 34px 9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;background:#f8fafd;font-weight:600;color:var(--navy);cursor:pointer;min-width:200px;text-align:left;position:relative;font-family:inherit}
@@ -201,11 +210,19 @@ tbody tr:hover{background:#fff8dc}
         </div>
         <div class="chips" id="modeChips">
           <button class="chip on" data-m="gol">Over gol</button>
+          <button class="chip" data-m="gtempi">Goal 1T / 2T</button>
           <button class="chip" data-m="ang">Over angoli</button>
+          <button class="chip" data-m="rgol">Ritardi gol</button>
+          <button class="chip" data-m="rang">Ritardi angoli</button>
         </div>
         <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
       </div>
       <div class="tw"><table id="sqTable"></table></div>
+      <div class="legend" id="ritLegend" style="display:none">
+        <span>Ritardo = partite consecutive (dalla più recente) senza che l'evento accada</span>
+        <span><i style="background:var(--loss)"></i>uguale o oltre il ritardo massimo delle ultime 100</span>
+        <span><i style="background:#ffd9a8"></i>oltre il 70% del massimo</span>
+      </div>
     </div>
   </section>
 </main>
@@ -268,9 +285,9 @@ const pct = (n,d) => d ? n/d*100 : null;
 const fp = v => v==null ? 'n.d.' : v.toFixed(0)+'%';
 const lvl = v => v==null ? 'lo' : v>=70 ? 'hi' : v>=50 ? 'mid' : 'lo';
 const comma = x => String(x).replace('.',',');
-function heat(v){
+function heat(v, lo=30, hi=100){
   if(v==null) return '<span class="muted">n.d.</span>';
-  const a = Math.max(0, Math.min(1,(v-30)/70));
+  const a = Math.max(0, Math.min(1,(v-lo)/(hi-lo)));
   return `<span class="heat" style="background:rgba(31,164,99,${(a*0.55).toFixed(2)})">${v.toFixed(0)}%</span>`;
 }
 const LG = Object.fromEntries(LEAGUES.map(l => [l.code, l]));
@@ -374,7 +391,7 @@ function build(){
   const curSeason = {};
   for(const m of MATCHES) if(!curSeason[m.lg] || m.s > curSeason[m.lg]) curSeason[m.lg] = m.s;
   TEAM_LIST = Object.values(TEAMS).map(t => {
-    Object.assign(t, calc(t));
+    Object.assign(t, calc(t)); calcRit(t);
     t.league = t.matches[0].lg;
     t.active = t.matches[0].s === curSeason[t.league];
     return t;
@@ -387,6 +404,38 @@ function build(){
 }
 
 const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5], COV = [7.5,8.5,9.5,10.5,11.5];
+// eventi per i ritardi: need = dato richiesto (null = sempre presente, 'ht' = primo tempo, 'ck' = angoli)
+const RIT = [
+  ...OV.map((x,i)=>({k:'O'+i, l:'Over '+comma(x), grp:'gol', need:null, ok:m => m.hg+m.ag > x})),
+  {k:'GG',  l:'Goal',      grp:'gol', need:null, ok:m => m.hg>0 && m.ag>0},
+  {k:'GG1', l:'Goal 1°T',  grp:'gol', need:'ht', ok:m => m.hh>0 && m.ah>0},
+  {k:'GG2', l:'Goal 2°T',  grp:'gol', need:'ht', ok:m => m.hg-m.hh>0 && m.ag-m.ah>0},
+  ...COV.map((x,i)=>({k:'C'+i, l:'Over '+comma(x)+' angoli', grp:'ang', need:'ck', ok:m => m.hc+m.ac > x})),
+];
+function calcRit(t){
+  const out = {};
+  for(const e of RIT){
+    let r = null, run = 0, max = 0, n = 0, last = null;
+    for(const m of t.matches){                       // dalla più recente alla più vecchia
+      if(e.need==='ht' && (m.hh==null || m.ah==null)) continue;
+      if(e.need==='ck' && (m.hc==null || m.ac==null)) continue;
+      n++;
+      if(e.ok(m)){ if(r===null){ r = run; last = m.d; } max = Math.max(max, run); run = 0; }
+      else run++;
+    }
+    max = Math.max(max, run);
+    const never = n>0 && r===null;
+    if(never) r = run;
+    out[e.k] = {r: n ? r : null, max, n, never, last};
+    t['r'+e.k] = n ? r : null;
+  }
+  t.rit = out;
+}
+function ritHTML(x){
+  if(!x || x.r==null) return '<span class="rit na">n.d.</span>';
+  const cls = x.max>=2 && x.r>=x.max ? 'rec' : x.max>0 && x.r>=x.max*0.7 && x.r>=3 ? 'alto' : '';
+  return `<span class="rit ${cls}" title="Ritardo massimo nelle ultime ${x.n}: ${x.max}">${x.never?'≥':''}${x.r}</span>`;
+}
 function calc(t){
   let V=0,N=0,P=0,GF=0,GS=0,GG=0,GG1=0,GG2=0,Gh=0,Gc=0,Y=0,R=0,YT=0,Gk=0,CF=0,CA=0;
   const o=OV.map(()=>0), pt=HOV.map(()=>0), st=HOV.map(()=>0), co=COV.map(()=>0), form=[];
@@ -551,6 +600,16 @@ function teamCardHTML(t){
   <div class="sec-title">Ammonizioni / Espulsioni <small>${t.Gc ? `${t.Gc} partite con dati` : ''}</small></div>
   ${cardsHTML}
 
+  <div class="sec-title">Ritardi <small>partite consecutive senza l'evento, dalla più recente</small></div>
+  <div class="two">${['gol','ang'].map(g => {
+    const ev = RIT.filter(e => e.grp===g && t.rit[e.k].n);
+    if(!ev.length) return g==='ang' ? `<div>${naBox('Gli angoli')}</div>` : '';
+    return `<div class="tw"><table>
+      <thead><tr><th class="left">${g==='gol'?'Gol':'Angoli'}</th><th>Ritardo</th><th>Massimo</th><th>Ultima volta</th></tr></thead>
+      <tbody>${ev.map(e => { const x = t.rit[e.k]; return `<tr><td class="left"><b>${e.l}</b></td><td>${ritHTML(x)}</td>
+        <td class="muted">${x.max}</td><td class="muted">${x.last ? fmtDate(x.last) : 'mai nelle ultime '+x.n}</td></tr>`; }).join('')}</tbody></table></div>`;
+  }).join('')}</div>
+
   <div class="sec-title">Ultime ${t.G} partite</div>
   <div class="tw" style="max-height:420px;overflow:auto"><table>
     <thead><tr><th>Data</th><th>${t.league==='NAZ'?'Torneo':'Camp.'}</th><th></th><th class="left">Avversario</th><th>Ris.</th><th>1°T</th><th>Angoli</th><th>Cart.</th><th></th></tr></thead>
@@ -609,6 +668,8 @@ const CMP_ROWS = [
   {grp:'Angoli'},
   ...COV.map((x,i)=>({k:'pC'+i, l:'Over '+comma(x)+' angoli', f:P})),
   {k:'mCF', l:'Media angoli a favore', f:D2}, {k:'mCA', l:'Media angoli contro', f:D2}, {k:'mCT', l:'Media angoli totali', f:D2},
+  {grp:'Ritardi'},
+  ...RIT.map(e => ({k:'r'+e.k, l:'Ritardo '+e.l, html:(v,t)=>ritHTML(t.rit[e.k])})),
   {grp:'Cartellini'},
   {k:'Y',  l:'Ammonizioni', f:(v,t)=>t.Gc?v:'n.d.'}, {k:'mY', l:'Media ammonizioni', f:D2},
   {k:'R',  l:'Espulsioni',  f:(v,t)=>t.Gc?v:'n.d.'},
@@ -624,7 +685,7 @@ function renderCompare(){
     return `<tr><td class="left"><b>${r.l}</b></td>${ts.map(t=>{
       const v = t[r.k];
       const cls = bestV!==null && v===bestV ? 'best' : '';
-      return `<td class="${cls}">${r.html ? r.html(v) : r.f ? r.f(v,t) : v}</td>`;
+      return `<td class="${cls}">${r.html ? r.html(v,t) : r.f ? r.f(v,t) : v}</td>`;
     }).join('')}</tr>`;
   }).join('');
   $('cmpResult').innerHTML = `<div class="tw"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>
@@ -639,9 +700,17 @@ function sqCols(){
     {k:'G', l:'G'}, {k:'V', l:'V'}, {k:'N', l:'N'}, {k:'P', l:'P'},
     {k:'GF', l:'GF'}, {k:'GS', l:'GS'}, {k:'DR', l:'DR'}, {k:'PTS', l:'Pt'},
   ];
-  const extra = sqMode==='gol'
-    ? OV.map((x,i)=>({k:'pO'+i, l:'O '+comma(x), ov:true, heat:true}))
-    : [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}];
+  const ritCols = g => RIT.filter(e => e.grp===g).map(e => ({k:'r'+e.k, rit:e.k, ov:true,
+    l: e.l.replace('Over ','O ').replace(' angoli','').replace('°T','T'), title:'Ritardo '+e.l}));
+  const extra = {
+    gol:    OV.map((x,i)=>({k:'pO'+i, l:'O '+comma(x), ov:true, heat:true})),
+    gtempi: [{k:'pGG', l:'Goal', ov:true, heat:true}, {k:'pNG', l:'No Goal', ov:true, heat:true},
+             {k:'pGG1', l:'Goal 1T', ov:true, heat:true, lo:5, hi:45, title:'Goal nel 1° tempo (segnano entrambe)'},
+             {k:'pGG2', l:'Goal 2T', ov:true, heat:true, lo:5, hi:45, title:'Goal nel 2° tempo (segnano entrambe)'}],
+    ang:    [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}],
+    rgol:   ritCols('gol'),
+    rang:   ritCols('ang'),
+  }[sqMode];
   return [...base, ...extra, {k:'form', l:'Ultime 5', nosort:true}];
 }
 // --- scelta di uno o più campionati ---
@@ -709,7 +778,10 @@ $('modeChips').addEventListener('click', e => {
   const c = e.target.closest('.chip'); if(!c) return;
   sqMode = c.dataset.m;
   [...$('modeChips').children].forEach(x => x.classList.toggle('on', x===c));
-  if(/^p[OC]\d|^mCT$/.test(sqSort.k)) sqSort = {k:'PTS', dir:-1};
+  if(!sqCols().some(c => c.k===sqSort.k)) sqSort = {k:'PTS', dir:-1};
+  if(sqMode==='rgol') sqSort = {k:'rO2', dir:-1};
+  if(sqMode==='rang') sqSort = {k:'rC2', dir:-1};
+  $('ritLegend').style.display = sqMode.startsWith('r') ? 'flex' : 'none';
   renderSquadre();
 });
 function renderSquadre(){
@@ -738,7 +810,7 @@ function renderSquadre(){
       case 'PTS': return `<td><b>${t.PTS}</b></td>`;
       case 'mCT': return `<td>${D2(t.mCT)}</td>`;
       case 'form': return `<td>${formHTML(t.form)}</td>`;
-      default: return `<td>${c.heat ? heat(t[c.k]) : t[c.k]}</td>`;
+      default: return `<td>${c.rit ? ritHTML(t.rit[c.rit]) : c.heat ? heat(t[c.k], c.lo, c.hi) : t[c.k]}</td>`;
     }
   };
   const body = list.length ? list.map((t,i)=>`<tr>${cols.map(c=>cell(c,t,i)).join('')}</tr>`).join('')
