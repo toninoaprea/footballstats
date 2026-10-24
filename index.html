@@ -186,6 +186,45 @@ tr.both td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
 .nx .tm div{font-weight:600;color:var(--navy)}
 .nx td.nxna{color:#b7c2d3}.nx th.nxna{color:#7d8ea8}
 
+/* TITOLI DELLE COLONNE SEMPRE VISIBILI */
+.tw.stk{max-height:calc(100vh - 190px);overflow:auto}
+.tw.stk thead{position:sticky;top:0;z-index:3}
+/* riga dei filtri % sotto i titoli */
+tr.flt th{background:#1b3f6e;padding:5px 4px;cursor:default;border-radius:0 !important}
+tr.flt input{width:58px;padding:4px 5px;border:1px solid #3d5f8c;border-radius:6px;background:#0f2a4d;color:#fff;font-size:12px;text-align:center;font-family:inherit}
+tr.flt input::placeholder{color:#8ea6c6}
+tr.flt input.on{background:var(--gold);color:var(--navy);border-color:var(--gold);font-weight:700}
+tr.flt .lab{font-family:'Inter';font-size:10.5px;color:#a9c1e0;text-transform:none;font-weight:500}
+.pr-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;margin:-4px 0 10px;min-height:4px}
+.pr-active .fchip{background:#fff3c4;border:1px solid var(--gold);border-radius:14px;padding:3px 6px 3px 10px;font-weight:600;color:var(--navy)}
+.pr-active .fchip button,.pr-active .clr{border:none;background:none;cursor:pointer;color:var(--muted);font-weight:700;margin-left:4px}
+.pr-active .clr{text-decoration:underline;font-weight:600}
+@media(max-width:640px){.tw.stk{max-height:calc(100vh - 140px)}}
+
+/* STAMPA */
+.btn-print{padding:9px 14px;border:2px solid var(--navy);border-radius:10px;background:#fff;color:var(--navy);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+.btn-print:hover{background:var(--navy);color:var(--gold)}
+#printArea{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff}
+  header,main,.modal{display:none !important}
+  #printArea{display:block;font-family:'Inter',Arial,sans-serif;color:#000}
+  #printArea h1{font-family:'Oswald',Arial,sans-serif;font-size:18px;margin:0 0 2px}
+  #printArea .pinfo{font-size:10px;color:#333;margin-bottom:8px;line-height:1.4}
+  #printArea table{width:100%;border-collapse:collapse;font-size:9.5px}
+  #printArea th{background:#0b2545 !important;color:#fff !important;padding:4px 3px;font-size:9px;border:1px solid #0b2545;cursor:default}
+  #printArea td{border:1px solid #bbb;padding:3px 3px;text-align:center;white-space:nowrap}
+  #printArea td.l{text-align:left}
+  #printArea tr{break-inside:avoid}
+  #printArea tbody tr,#printArea tbody tr:hover{background:#fff !important}
+  #printArea tr.pday td{background:#e9eff8 !important;font-weight:700;text-align:left}
+  #printArea .hv{font-weight:700}
+  #printArea td.w{width:60px}
+  #printArea td.ck{width:22px}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
 /* MULTI-SELECT CAMPIONATI */
 .ms{position:relative}
 .ms-btn{padding:9px 34px 9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;background:#f8fafd;font-weight:600;color:var(--navy);cursor:pointer;min-width:200px;text-align:left;position:relative;font-family:inherit}
@@ -268,7 +307,7 @@ html,body{overflow-x:hidden}
         </div>
         <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
       </div>
-      <div class="tw"><table id="sqTable"></table></div>
+      <div class="tw stk"><table id="sqTable"></table></div>
       <div class="legend" id="ritLegend" style="display:none">
         <span>Ritardo = partite consecutive (dalla più recente) senza che l'evento accada</span>
         <span><i style="background:var(--loss)"></i>uguale o oltre il ritardo massimo delle ultime 100</span>
@@ -297,9 +336,10 @@ html,body{overflow-x:hidden}
           <button class="chip" data-m="ang">Angoli</button>
         </div>
         <select id="prSortSel" title="Ordina le partite"></select>
-        <label class="thr">Minimo <input type="range" id="prThr" min="0" max="95" step="5" value="0"> <b id="prThrV">0%</b></label>
+        <button class="btn-print" id="prPrint" type="button" title="Stampa o salva in PDF le partite che vedi">🖨 Stampa / PDF</button>
       </div>
-      <div class="tw"><table id="prTable"></table></div>
+      <div class="pr-active" id="prActive"></div>
+      <div class="tw stk"><table id="prTable"><thead></thead><tbody></tbody></table></div>
       <p class="muted" style="font-size:12px;margin-top:8px" id="prFoot"></p>
     </div>
   </section>
@@ -331,12 +371,13 @@ html,body{overflow-x:hidden}
           <button class="chip" data-m="usc">Uscite</button>
         </div>
       </div>
-      <div class="tw"><table class="nx" id="nxTable"></table></div>
+      <div class="tw stk"><table class="nx" id="nxTable"></table></div>
       <div class="legend" id="nxLegend"></div>
     </div>
   </section>
 </main>
 
+<div id="printArea"></div>
 <div class="modal" id="modal"><div class="card"><button class="close" onclick="closeModal()">✕</button><div id="modalBody"></div></div></div>
 
 <script>
@@ -1125,7 +1166,11 @@ function dayLabel(iso){
   const base = `${GIORNI[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
   return iso===t ? 'Oggi · '+base : iso===tom ? 'Domani · '+base : base;
 }
-function upcoming(){ const t = todayISO(); return FIXTURES.filter(f => f.d >= t).sort((a,b)=> a.d.localeCompare(b.d) || (a.ora||'').localeCompare(b.ora||'')); }
+function upcoming(){
+  const t = todayISO(), now = new Date();
+  // le partite di oggi iniziate da più di 2 ore sono finite: non servono più
+  const limite = `${String(Math.max(0, now.getHours()-2)).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  return FIXTURES.filter(f => f.d > t || (f.d === t && (!f.ora || now.getHours() < 2 || f.ora >= limite))).sort((a,b)=> a.d.localeCompare(b.d) || (a.ora||'').localeCompare(b.ora||'')); }
 function buildPronoFilters(){
   const fx = upcoming();
   const days = [...new Set(fx.map(f=>f.d))].sort();
@@ -1142,24 +1187,28 @@ function buildPronoFilters(){
   if([...lSel.options].some(o=>o.value===oldL)) lSel.value = oldL;
 }
 const pc = v => v==null ? '<span class="muted">–</span>' : heat(v, 25, 90);
+let prFilters = {};   // mercato -> percentuale minima (si possono usare più filtri insieme)
+let prHeadKey = '';
 function renderPronostici(){
   if(!$('prTable')) return;
   const day = $('prDay').value || 'all', lg = $('prLeague').value || 'all', meth = $('prMethod').value;
-  const thr = +$('prThr').value; $('prThrV').textContent = thr+'%';
   const cols = PR_COLS[prMode];
   if(!prSort || !cols.includes(prSort)) prSort = null;
   $('prSortSel').value = prSort || '';
-  $('prThr').disabled = !prSort;
-  $('prThr').parentElement.style.opacity = prSort ? 1 : .45;
-  $('prThr').parentElement.title = prSort ? '' : 'Prima scegli in "Ordina per" il mercato';
+  const active = Object.entries(prFilters).filter(([k,v]) => v>0);
   let rows = upcoming().filter(f => (day==='all' || f.d===day) && (lg==='all' || f.lg===lg)).map(pronostico);
+  if(active.length) rows = rows.filter(r => r.ok && active.every(([k,v]) => (r.P[meth][k] ?? -1) >= v));
   const val = r => r.ok ? r.P[meth][prSort] : null;
-  if(prSort){
-    rows = rows.filter(r => (val(r) ?? -1) >= thr);
-    rows.sort((a,b) => (val(b) ?? -1) - (val(a) ?? -1));
-  }
+  if(prSort) rows.sort((a,b) => (val(b) ?? -1) - (val(a) ?? -1));
   $('prCount').textContent = `${rows.length} partite`;
-  const head = `<tr><th>Ora</th><th></th><th class="left">Partita</th>${cols.map(k=>`<th class="ov" data-k="${k}" title="Clicca per ordinare">${MKmap[k].l.replace(' angoli','').replace('Over ','O ')} ${prSort===k?'<span class="arr">▼</span>':''}</th>`).join('')}</tr>`;
+  // intestazione: ridisegnata solo se cambiano colonne o ordinamento (così chi scrive nelle caselle non perde il cursore)
+  const key = prMode+'|'+prSort;
+  if(key !== prHeadKey){
+    prHeadKey = key;
+    $('prTable').tHead.innerHTML =
+      `<tr><th>Ora</th><th></th><th class="left">Partita</th>${cols.map(k=>`<th class="ov" data-k="${k}" title="Clicca per ordinare">${MKmap[k].l.replace(' angoli','').replace('Over ','O ')} ${prSort===k?'<span class="arr">▼</span>':''}</th>`).join('')}</tr>
+       <tr class="flt"><th colspan="3" class="left"><span class="lab">Mostra solo se la probabilità è almeno…</span></th>${cols.map(k=>`<th><input type="number" min="0" max="100" step="5" placeholder="≥ %" data-f="${k}" value="${prFilters[k]||''}" class="${prFilters[k]?'on':''}" title="${MKmap[k].l}: probabilità minima"></th>`).join('')}</tr>`;
+  }
   let body = '', lastDay = null;
   for(const r of rows){
     if(!prSort && r.f.d !== lastDay){ body += `<tr class="pr-day"><td colspan="${cols.length+3}">${dayLabel(r.f.d)}</td></tr>`; lastDay = r.f.d; }
@@ -1173,10 +1222,13 @@ function renderPronostici(){
     </tr>`;
   }
   if(!rows.length) body = `<tr><td colspan="${cols.length+3}" class="empty">${FIXTURES.length ? 'Nessuna partita con questi filtri' : 'Calendario non ancora disponibile: aggiorna il robot (Actions → Aggiorna dati)'}</td></tr>`;
-  $('prTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
-  $('prFoot').textContent = prSort
-    ? `Ordinate per ${MKmap[prSort].l}, dalla più probabile. Per tornare all'ordine per data scegli "data e ora" in "Ordina per".`
-    : `Scegli un mercato in "Ordina per" (o clicca l'intestazione di una colonna) per ordinare le partite dalla più probabile; con "Minimo" nascondi quelle sotto la soglia.`;
+  $('prTable').tBodies[0].innerHTML = body;
+  // filtri attivi (anche quelli delle colonne di altri gruppi)
+  $('prActive').innerHTML = active.length
+    ? `<span class="muted">Filtri attivi:</span>` + active.map(([k,v]) => `<span class="fchip">${MKmap[k].l} ≥ ${v}%<button data-rm="${k}" title="Togli">✕</button></span>`).join('') + `<button class="clr" data-rm="*">togli tutti</button>`
+    : '';
+  $('prFoot').textContent = (prSort ? `Ordinate per ${MKmap[prSort].l}, dalla più probabile. ` : '')
+    + `Scrivi una percentuale nelle caselle sotto i titoli per filtrare: puoi usarne più di una, anche di gruppi diversi.`;
 }
 function openPronostico(key){
   const [lg, d, h, a] = key.split('|');
@@ -1228,7 +1280,53 @@ $('prSortSel').addEventListener('change', e => {
   prSort = k || null; renderPronostici();
 });
 ['prDay','prLeague','prMethod'].forEach(id => $(id).addEventListener('change', renderPronostici));
-$('prThr').addEventListener('input', renderPronostici);
+function stampaPronostici(){
+  const day = $('prDay').value || 'all', lg = $('prLeague').value || 'all', meth = $('prMethod').value;
+  const active = Object.entries(prFilters).filter(([k,v]) => v>0);
+  // colonne: quelle del gruppo che stai guardando + quelle su cui hai messo un filtro
+  const cols = [...new Set([...PR_COLS[prMode], ...active.map(([k])=>k)])];
+  let rows = upcoming().filter(f => (day==='all' || f.d===day) && (lg==='all' || f.lg===lg)).map(pronostico);
+  if(active.length) rows = rows.filter(r => r.ok && active.every(([k,v]) => (r.P[meth][k] ?? -1) >= v));
+  const val = r => r.ok ? r.P[meth][prSort] : null;
+  if(prSort) rows.sort((a,b) => (val(b) ?? -1) - (val(a) ?? -1));
+  const bg = v => { if(v==null) return ''; const a = Math.max(0, Math.min(1,(v-25)/65)); return `background:rgba(31,164,99,${(a*0.55).toFixed(2)})`; };
+  const metodo = $('prMethod').selectedOptions[0].text.replace('Metodo: ','');
+  const info = [
+    `Giorno: <b>${esc($('prDay').selectedOptions[0].text.replace(/ \(\d+\)$/,''))}</b>`,
+    `Campionato: <b>${esc($('prLeague').selectedOptions[0].text.replace(/ \(\d+\)$/,''))}</b>`,
+    `Metodo: <b>${esc(metodo)}</b>`,
+    prSort ? `Ordinate per: <b>${MKmap[prSort].l}</b>` : 'Ordinate per data e ora',
+    active.length ? `Filtri: <b>${active.map(([k,v])=>`${MKmap[k].l} ≥ ${v}%`).join(', ')}</b>` : 'Nessun filtro',
+  ].join(' · ');
+  let body = '', last = null;
+  for(const r of rows){
+    if(!prSort && r.f.d!==last){ body += `<tr class="pday"><td colspan="${cols.length+5}">${dayLabel(r.f.d)}</td></tr>`; last = r.f.d; }
+    const H = TEAMS[r.f.h], A = TEAMS[r.f.a];
+    body += `<tr><td>${prSort ? dayLabel(r.f.d).replace(/^(Oggi|Domani) · /,'')+' ' : ''}${r.f.ora||''}</td>
+      <td class="l">${esc(lgFull(r.f.lg))}</td>
+      <td class="l"><b>${esc(H?H.short:r.f.h)}</b> - <b>${esc(A?A.short:r.f.a)}</b></td>
+      ${r.ok ? cols.map(k=>{ const v = r.P[meth][k]; return `<td class="${prSort===k||prFilters[k]?'hv':''}" style="${bg(v)}">${v==null?'–':v.toFixed(0)+'%'}</td>`; }).join('') : `<td colspan="${cols.length}">dati insufficienti</td>`}
+      <td class="w"></td><td class="ck"></td></tr>`;
+  }
+  $('printArea').innerHTML = `<h1>Pronostici statistici · ${rows.length} partite</h1>
+    <div class="pinfo">${info}<br>Stampato il ${new Date().toLocaleString('it-IT')} · probabilità solo statistiche sulle ultime 100 partite di campionato, non certezze.</div>
+    <table><thead><tr><th>Ora</th><th>Campionato</th><th>Partita</th>${cols.map(k=>`<th>${MKmap[k].l.replace(' angoli',' ang.')}</th>`).join('')}<th>Risultato</th><th>✓</th></tr></thead>
+    <tbody>${body || `<tr><td colspan="${cols.length+5}">Nessuna partita</td></tr>`}</tbody></table>`;
+  window.print();
+}
+$('prPrint').addEventListener('click', stampaPronostici);
+$('prTable').addEventListener('input', e => {
+  const inp = e.target.closest('input[data-f]'); if(!inp) return;
+  const v = Math.max(0, Math.min(100, +inp.value || 0));
+  if(v) prFilters[inp.dataset.f] = v; else delete prFilters[inp.dataset.f];
+  inp.classList.toggle('on', !!v);
+  renderPronostici();
+});
+$('prActive').addEventListener('click', e => {
+  const b = e.target.closest('[data-rm]'); if(!b) return;
+  if(b.dataset.rm==='*') prFilters = {}; else delete prFilters[b.dataset.rm];
+  prHeadKey = ''; renderPronostici();
+});
 $('prChips').addEventListener('click', e => {
   const c = e.target.closest('.chip'); if(!c) return;
   prMode = c.dataset.m; prSort = null;
@@ -1236,6 +1334,7 @@ $('prChips').addEventListener('click', e => {
   renderPronostici();
 });
 $('prTable').addEventListener('click', e => {
+  if(e.target.closest('input')) return;
   const th = e.target.closest('th[data-k]');
   if(th){ prSort = prSort===th.dataset.k ? null : th.dataset.k; renderPronostici(); return; }
   const m = e.target.closest('.pr-match'); if(m) openPronostico(m.dataset.i);
