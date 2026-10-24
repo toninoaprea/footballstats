@@ -10,6 +10,7 @@ import glob
 import io
 import json
 import os
+import re
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -127,6 +128,184 @@ for camp, stag, blocco in risultati:
     if blocco:
         dati.setdefault(camp, {})[stag] = blocco
 
+# ---- CAMPIONATI "EXTRA" di football-data.co.uk (stagione solare, solo risultati finali) ----
+# un file per nazione con tutte le stagioni: colonne Season, Date, Home, Away, HG, AG
+EXTRA = {"NO1": "https://www.football-data.co.uk/new/NOR.csv",    # Norvegia Eliteserien
+         "SW1": "https://www.football-data.co.uk/new/SWZ.csv"}    # Svizzera Super League
+for codice, url in EXTRA.items():
+    try:
+        testo = scarica(url, limite=90)
+        blocchi = {}
+        for riga in csv.DictReader(io.StringIO(testo)):
+            casa, trasf = (riga.get("Home") or "").strip(), (riga.get("Away") or "").strip()
+            gc, gt = numero(riga.get("HG")), numero(riga.get("AG"))
+            stag = (riga.get("Season") or "").strip()[-4:]
+            if not casa or not trasf or gc is None or gt is None or not stag.isdigit():
+                continue
+            if int(stag) < oggi.year - 3:          # bastano le ultime stagioni
+                continue
+            b = blocchi.setdefault(stag, {"teams": [], "rows": []})
+            for sq in (casa, trasf):
+                if sq not in b["teams"]:
+                    b["teams"].append(sq)
+            valori = {"FTHG": gc, "FTAG": gt}
+            b["rows"].append([data_iso(riga["Date"]), b["teams"].index(casa), b["teams"].index(trasf)]
+                             + [valori.get(c) for c in COLONNE])
+        if not blocchi:
+            raise ValueError("nessuna partita trovata")
+        dati[codice] = blocchi
+        print("OK  ", codice, {k: len(v["rows"]) for k, v in sorted(blocchi.items())}, flush=True)
+    except Exception as e:
+        print("ERR ", codice, e, flush=True)
+        if codice in vecchio:
+            dati[codice] = vecchio[codice]
+            print("    ", codice, "uso la copia precedente")
+
+# ---- CAMPIONATI CARICATI A MANO (cartella manuali/) ----
+# Metti nella cartella "manuali" i file CSV delle partite. Il nome del file dice il campionato:
+#   I3A_qualcosa.csv = Serie C Girone A   I3B_... = Girone B   I3C_... = Girone C   B2_... = Challenger Pro League
+#   NO2_... = Norvegia OBOS-ligaen   EN_... = National League North   ES_... = National League South
+#   IS1_... = Islanda Besta deild    N2_... = Olanda Eerste Divisie
+#   NO1_... / SW1_... = Norvegia / Svizzera: se carichi il CSV, sostituisce la fonte automatica (che ha solo i risultati finali)
+# Vanno bene i CSV di football-data.co.uk e quelli "matches" di FootyStats.
+# Se ricarichi un file aggiornato, le partite già presenti vengono sostituite (niente doppioni).
+MANUALI = {"I3A": "Serie C Girone A", "I3B": "Serie C Girone B", "I3C": "Serie C Girone C", "B2": "Challenger Pro League",
+           "NO2": "Norvegia OBOS-ligaen", "EN": "National League North", "ES": "National League South",
+           "IS1": "Islanda Besta deild", "N2": "Olanda Eerste Divisie",
+           "NO1": "Norvegia Eliteserien", "SW1": "Svizzera Super League"}
+STAGIONE_SOLARE = {"NO1", "NO2", "IS1"}   # campionati che si giocano nell'anno solare (marzo-novembre)
+# stesse colonne del robot, con i nomi usati da FootyStats
+SINONIMI = {
+    "HomeTeam": ["HomeTeam", "home_team_name"], "AwayTeam": ["AwayTeam", "away_team_name"],
+    "FTHG": ["FTHG", "home_team_goal_count"], "FTAG": ["FTAG", "away_team_goal_count"],
+    "HTHG": ["HTHG", "home_team_goal_count_half_time"], "HTAG": ["HTAG", "away_team_goal_count_half_time"],
+    "HS": ["HS", "home_team_shots"], "AS": ["AS", "away_team_shots"],
+    "HST": ["HST", "home_team_shots_on_target"], "AST": ["AST", "away_team_shots_on_target"],
+    "HF": ["HF", "home_team_fouls"], "AF": ["AF", "away_team_fouls"],
+    "HC": ["HC", "home_team_corner_count"], "AC": ["AC", "away_team_corner_count"],
+    "HY": ["HY", "home_team_yellow_cards"], "AY": ["AY", "away_team_yellow_cards"],
+    "HR": ["HR", "home_team_red_cards"], "AR": ["AR", "away_team_red_cards"],
+}
+MESI = {m: i + 1 for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+
+
+def data_manuale(riga):
+    ts = (riga.get("timestamp") or "").strip()
+    if ts.isdigit():
+        return datetime.datetime.fromtimestamp(int(ts), datetime.timezone.utc).strftime("%Y-%m-%d")
+    d = (riga.get("date_GMT") or riga.get("Date") or "").strip()
+    if not d:
+        return None
+    if d[:3].lower() in MESI:                      # FootyStats: "Aug 23 2025 - 6:30pm"
+        p = d.replace("-", " ").split()
+        return f"{int(p[2]):04d}-{MESI[p[0][:3].lower()]:02d}-{int(p[1]):02d}"
+    return data_iso(d)
+
+
+def stagione_di(d):
+    y, m = int(d[:4]), int(d[5:7])
+    a = y if m >= 7 else y - 1
+    return f"{a % 100:02d}{(a + 1) % 100:02d}"
+
+
+def chiave(nome):
+    """Nome semplificato per far combaciare fonti diverse: 'US Salernitana 1919' -> 'salernitana'."""
+    parole = re.sub(r"[^a-z0-9 ]", " ", nome.lower()).split()
+    togli = {"fc", "ac", "as", "us", "ss", "ssc", "ssd", "asd", "calcio", "cf", "sc", "afc", "kv", "kfc", "rsc", "sk",
+             "fk", "il", "bk", "if", "ik", "ff", "aif", "sv", "vv", "bc", "cd", "ud", "rc", "kaa", "krc", "rfc", "umf", "ia"}
+    return "".join(p for p in parole if p not in togli and not re.fullmatch(r"(18|19|20)\d\d", p))
+
+
+# nomi di squadra già noti (per far combaciare per es. una squadra passata dalla Serie B alla C)
+NOMI_NOTI = {chiave(t): t for blocchi in dati.values() for b in blocchi.values() for t in b["teams"]}
+
+manuali = {}
+calendario = {}   # (codice, data, casa, trasferta) -> orario  — partite ancora da giocare
+oggi_iso = oggi.isoformat()
+for percorso in sorted(glob.glob(os.path.join("manuali", "*.csv"))):
+    nome_file = os.path.basename(percorso)
+    codice = nome_file.split("_")[0].split(".")[0].upper()
+    if codice not in MANUALI:
+        print("SALTO", nome_file, "- il nome deve iniziare con", ", ".join(MANUALI))
+        continue
+    with open(percorso, encoding="utf-8-sig", errors="replace") as f:
+        righe_csv = list(csv.DictReader(f))
+    if not righe_csv:
+        continue
+    intest = righe_csv[0].keys()
+    col = {k: next((x for x in v if x in intest), None) for k, v in SINONIMI.items()}
+    if not col["HomeTeam"] or not col["FTHG"]:
+        print("SALTO", nome_file, "- non trovo le colonne delle squadre o dei gol")
+        continue
+    n = 0
+    for riga in righe_csv:
+        try:
+            d = data_manuale(riga)
+        except Exception:
+            d = None
+        casa, trasf = (riga.get(col["HomeTeam"]) or "").strip(), (riga.get(col["AwayTeam"]) or "").strip()
+        if not d or not casa or not trasf:
+            continue
+        casa, trasf = NOMI_NOTI.get(chiave(casa), casa), NOMI_NOTI.get(chiave(trasf), trasf)
+        NOMI_NOTI.setdefault(chiave(casa), casa)
+        NOMI_NOTI.setdefault(chiave(trasf), trasf)
+        if (riga.get("status") or "complete").strip().lower() not in ("complete", "completed", "ft"):
+            if d >= oggi_iso:                      # partita ancora da giocare: va nel calendario
+                calendario[(codice, d, casa, trasf)] = ""
+            continue
+        if numero(riga.get(col["FTHG"])) is None:
+            continue
+        valori = []
+        for c in COLONNE:
+            v = numero(riga.get(col[c])) if col.get(c) else None
+            valori.append(None if v is not None and v < 0 else v)   # FootyStats usa -1 per "dato mancante"
+        manuali[(codice, d, casa, trasf)] = valori   # stessa partita in due file: vince l'ultimo
+        n += 1
+    print("OK   manuale", nome_file, "→", MANUALI[codice], n, "partite")
+
+for codice in {k[0] for k in manuali} & set(EXTRA):
+    dati.pop(codice, None)        # c'è il CSV completo: la fonte automatica (solo risultati) non serve
+    print("     ", codice, "uso il CSV caricato a mano al posto della fonte automatica")
+for (codice, d, casa, trasf), valori in sorted(manuali.items(), key=lambda x: x[0][1]):
+    stag = d[:4] if codice in STAGIONE_SOLARE else stagione_di(d)
+    b = dati.setdefault(codice, {}).setdefault(stag, {"teams": [], "rows": []})
+    for sq in (casa, trasf):
+        if sq not in b["teams"]:
+            b["teams"].append(sq)
+    b["rows"].append([d, b["teams"].index(casa), b["teams"].index(trasf)] + valori)
+
+# ---- CALENDARIO: prossime partite (football-data.co.uk) ----
+# fixtures.csv = campionati principali; new_league_fixtures.csv = campionati "extra" (es. Norvegia)
+PAESI_EXTRA = {"Norway": "NO1", "Switzerland": "SW1"}
+NOMI_SQUADRE = {t for blocchi in dati.values() for b in blocchi.values() for t in b["teams"]}
+for url in ["https://www.football-data.co.uk/fixtures.csv", "https://www.football-data.co.uk/new_league_fixtures.csv"]:
+    try:
+        testo = scarica(url)
+        n = 0
+        for riga in csv.DictReader(io.StringIO(testo)):
+            codice = (riga.get("Div") or "").strip() or PAESI_EXTRA.get((riga.get("Country") or "").strip(), "")
+            if codice not in dati:
+                continue
+            casa = (riga.get("HomeTeam") or riga.get("Home") or "").strip()
+            trasf = (riga.get("AwayTeam") or riga.get("Away") or "").strip()
+            if not casa or not trasf or not riga.get("Date"):
+                continue
+            d = data_iso(riga["Date"])
+            if d < oggi_iso:
+                continue
+            if casa not in NOMI_SQUADRE:
+                casa = NOMI_NOTI.get(chiave(casa), casa)
+            if trasf not in NOMI_SQUADRE:
+                trasf = NOMI_NOTI.get(chiave(trasf), trasf)
+            calendario[(codice, d, casa, trasf)] = (riga.get("Time") or "").strip()
+            n += 1
+        print("OK   calendario", url.rsplit("/", 1)[1], n, "partite", flush=True)
+    except Exception as e:
+        print("ERR  calendario", url.rsplit("/", 1)[1], e, flush=True)
+prossime = [[d, ora, codice, casa, trasf] for (codice, d, casa, trasf), ora in calendario.items()]
+prossime.sort(key=lambda p: (p[0], p[1], p[2]))
+print("Calendario:", len(prossime), "partite in programma")
+
 # ---- NAZIONALI (solo risultati finali) ----
 # archivio pubblico di tutte le partite internazionali: github.com/martj42/international_results
 URL_NAZ = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
@@ -197,7 +376,7 @@ except Exception as e:
 os.makedirs("data", exist_ok=True)
 with open(FILE_OUT, "w", encoding="utf-8") as f:
     json.dump({"updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-               "cols": COLONNE, "data": dati}, f, separators=(",", ":"), ensure_ascii=False)
+               "cols": COLONNE, "data": dati, "fixtures": prossime}, f, separators=(",", ":"), ensure_ascii=False)
 
 # elimina i vecchi file CSV della prima versione
 for vecchio_csv in glob.glob(os.path.join("data", "*.csv")) + [os.path.join("data", "meta.json")]:
