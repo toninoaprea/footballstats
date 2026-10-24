@@ -296,6 +296,7 @@ html,body{overflow-x:hidden}
           <button class="chip" data-m="tempi">1° / 2° tempo</button>
           <button class="chip" data-m="ang">Angoli</button>
         </div>
+        <select id="prSortSel" title="Ordina le partite"></select>
         <label class="thr">Minimo <input type="range" id="prThr" min="0" max="95" step="5" value="0"> <b id="prThrV">0%</b></label>
       </div>
       <div class="tw"><table id="prTable"></table></div>
@@ -1147,9 +1148,10 @@ function renderPronostici(){
   const thr = +$('prThr').value; $('prThrV').textContent = thr+'%';
   const cols = PR_COLS[prMode];
   if(!prSort || !cols.includes(prSort)) prSort = null;
+  $('prSortSel').value = prSort || '';
   $('prThr').disabled = !prSort;
   $('prThr').parentElement.style.opacity = prSort ? 1 : .45;
-  $('prThr').parentElement.title = prSort ? '' : 'Prima clicca una colonna per scegliere il mercato';
+  $('prThr').parentElement.title = prSort ? '' : 'Prima scegli in "Ordina per" il mercato';
   let rows = upcoming().filter(f => (day==='all' || f.d===day) && (lg==='all' || f.lg===lg)).map(pronostico);
   const val = r => r.ok ? r.P[meth][prSort] : null;
   if(prSort){
@@ -1173,8 +1175,8 @@ function renderPronostici(){
   if(!rows.length) body = `<tr><td colspan="${cols.length+3}" class="empty">${FIXTURES.length ? 'Nessuna partita con questi filtri' : 'Calendario non ancora disponibile: aggiorna il robot (Actions → Aggiorna dati)'}</td></tr>`;
   $('prTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
   $('prFoot').textContent = prSort
-    ? `Ordinate per ${MKmap[prSort].l}, dalla più probabile. Clicca di nuovo l'intestazione per tornare all'ordine per data.`
-    : `Clicca l'intestazione di una colonna per ordinare le partite dalla più probabile; con "Minimo" nascondi quelle sotto la soglia.`;
+    ? `Ordinate per ${MKmap[prSort].l}, dalla più probabile. Per tornare all'ordine per data scegli "data e ora" in "Ordina per".`
+    : `Scegli un mercato in "Ordina per" (o clicca l'intestazione di una colonna) per ordinare le partite dalla più probabile; con "Minimo" nascondi quelle sotto la soglia.`;
 }
 function openPronostico(key){
   const [lg, d, h, a] = key.split('|');
@@ -1214,6 +1216,17 @@ function openPronostico(key){
     <b>Poisson</b>: gol attesi calcolati da attacco e difesa delle due squadre rispetto alla media del campionato, poi trasformati in probabilità.</p>`;
   $('modal').classList.add('open');
 }
+const PR_GRUPPI = {esiti:'1X2 / Over / Goal', tempi:'1° / 2° tempo', ang:'Angoli'};
+$('prSortSel').innerHTML = `<option value="">↕ Ordina per: data e ora</option>` +
+  Object.entries(PR_COLS).map(([g, ks]) => `<optgroup label="${PR_GRUPPI[g]}">${ks.map(k=>`<option value="${k}">↓ ${MKmap[k].l} (più probabile)</option>`).join('')}</optgroup>`).join('');
+$('prSortSel').addEventListener('change', e => {
+  const k = e.target.value;
+  if(k){   // se il mercato è in un altro gruppo di colonne, passa a quel gruppo
+    const g = Object.keys(PR_COLS).find(g => PR_COLS[g].includes(k));
+    if(g !== prMode){ prMode = g; [...$('prChips').children].forEach(x => x.classList.toggle('on', x.dataset.m===g)); }
+  }
+  prSort = k || null; renderPronostici();
+});
 ['prDay','prLeague','prMethod'].forEach(id => $(id).addEventListener('change', renderPronostici));
 $('prThr').addEventListener('input', renderPronostici);
 $('prChips').addEventListener('click', e => {
