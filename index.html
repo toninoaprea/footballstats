@@ -209,11 +209,13 @@ tr.flt .lab{font-family:'Inter';font-size:10.5px;color:#a9c1e0;text-transform:no
   @page{size:A4 landscape;margin:10mm}
   body{background:#fff}
   header,main,.modal{display:none !important}
-  #printArea{display:block;font-family:'Inter',Arial,sans-serif;color:#000}
-  #printArea h1{font-family:'Oswald',Arial,sans-serif;font-size:18px;margin:0 0 2px}
+  /* caratteri di sistema (Helvetica su Mac): testo selezionabile riga per riga in Anteprima */
+  #printArea, #printArea *{font-family:Helvetica,Arial,'Liberation Sans',sans-serif !important}
+  #printArea{display:block;color:#000}
+  #printArea h1{font-size:18px;margin:0 0 2px}
   #printArea .pinfo{font-size:10px;color:#333;margin-bottom:8px;line-height:1.4}
   #printArea table{width:100%;border-collapse:collapse;font-size:9.5px}
-  #printArea th{background:#0b2545 !important;color:#fff !important;padding:4px 3px;font-size:9px;border:1px solid #0b2545;cursor:default}
+  #printArea th{background:#0b2545 !important;color:#fff !important;padding:4px 3px;font-size:9px;border:1px solid #0b2545;cursor:default;font-weight:bold;text-transform:none;letter-spacing:0}
   #printArea td{border:1px solid #bbb;padding:3px 3px;text-align:center;white-space:nowrap}
   #printArea td.l{text-align:left}
   #printArea tr{break-inside:avoid}
@@ -1292,8 +1294,8 @@ function stampaPronostici(){
   const bg = v => { if(v==null) return ''; const a = Math.max(0, Math.min(1,(v-25)/65)); return `background:rgba(31,164,99,${(a*0.55).toFixed(2)})`; };
   const metodo = $('prMethod').selectedOptions[0].text.replace('Metodo: ','');
   const info = [
-    `Giorno: <b>${esc($('prDay').selectedOptions[0].text.replace(/ \(\d+\)$/,''))}</b>`,
-    `Campionato: <b>${esc($('prLeague').selectedOptions[0].text.replace(/ \(\d+\)$/,''))}</b>`,
+    `Giorno: <b>${esc($('prDay').selectedOptions[0].text.replace(/ \(\d+\)$/,'').replace(/^\S*📅\s*/,''))}</b>`,
+    `Campionato: <b>${esc($('prLeague').selectedOptions[0].text.replace(/ \(\d+\)$/,'').replace(/^\S*🌍\s*/,''))}</b>`,
     `Metodo: <b>${esc(metodo)}</b>`,
     prSort ? `Ordinate per: <b>${MKmap[prSort].l}</b>` : 'Ordinate per data e ora',
     active.length ? `Filtri: <b>${active.map(([k,v])=>`${MKmap[k].l} ≥ ${v}%`).join(', ')}</b>` : 'Nessun filtro',
@@ -1310,7 +1312,7 @@ function stampaPronostici(){
   }
   $('printArea').innerHTML = `<h1>Pronostici statistici · ${rows.length} partite</h1>
     <div class="pinfo">${info}<br>Stampato il ${new Date().toLocaleString('it-IT')} · probabilità solo statistiche sulle ultime 100 partite di campionato, non certezze.</div>
-    <table><thead><tr><th>Ora</th><th>Campionato</th><th>Partita</th>${cols.map(k=>`<th>${MKmap[k].l.replace(' angoli',' ang.')}</th>`).join('')}<th>Risultato</th><th>✓</th></tr></thead>
+    <table><thead><tr><th>Ora</th><th>Campionato</th><th>Partita</th>${cols.map(k=>`<th>${MKmap[k].l.replace(' angoli',' ang.')}</th>`).join('')}<th>Risultato</th><th>OK</th></tr></thead>
     <tbody>${body || `<tr><td colspan="${cols.length+5}">Nessuna partita</td></tr>`}</tbody></table>`;
   window.print();
 }
