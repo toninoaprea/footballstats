@@ -214,6 +214,8 @@ def chiave(nome):
 NOMI_NOTI = {chiave(t): t for blocchi in dati.values() for b in blocchi.values() for t in b["teams"]}
 
 manuali = {}
+calendario = {}   # (codice, data, casa, trasferta) -> orario  — partite ancora da giocare
+oggi_iso = oggi.isoformat()
 for percorso in sorted(glob.glob(os.path.join("manuali", "*.csv"))):
     nome_file = os.path.basename(percorso)
     codice = nome_file.split("_")[0].split(".")[0].upper()
@@ -231,16 +233,22 @@ for percorso in sorted(glob.glob(os.path.join("manuali", "*.csv"))):
         continue
     n = 0
     for riga in righe_csv:
-        if (riga.get("status") or "complete").strip().lower() not in ("complete", "completed", "ft"):
-            continue                               # partita non ancora giocata
         try:
             d = data_manuale(riga)
         except Exception:
             d = None
         casa, trasf = (riga.get(col["HomeTeam"]) or "").strip(), (riga.get(col["AwayTeam"]) or "").strip()
-        if not d or not casa or not trasf or numero(riga.get(col["FTHG"])) is None:
+        if not d or not casa or not trasf:
             continue
         casa, trasf = NOMI_NOTI.get(chiave(casa), casa), NOMI_NOTI.get(chiave(trasf), trasf)
+        NOMI_NOTI.setdefault(chiave(casa), casa)
+        NOMI_NOTI.setdefault(chiave(trasf), trasf)
+        if (riga.get("status") or "complete").strip().lower() not in ("complete", "completed", "ft"):
+            if d >= oggi_iso:                      # partita ancora da giocare: va nel calendario
+                calendario[(codice, d, casa, trasf)] = ""
+            continue
+        if numero(riga.get(col["FTHG"])) is None:
+            continue
         valori = []
         for c in COLONNE:
             v = numero(riga.get(col[c])) if col.get(c) else None
@@ -256,6 +264,38 @@ for (codice, d, casa, trasf), valori in sorted(manuali.items(), key=lambda x: x[
         if sq not in b["teams"]:
             b["teams"].append(sq)
     b["rows"].append([d, b["teams"].index(casa), b["teams"].index(trasf)] + valori)
+
+# ---- CALENDARIO: prossime partite (football-data.co.uk) ----
+# fixtures.csv = campionati principali; new_league_fixtures.csv = campionati "extra" (es. Norvegia)
+PAESI_EXTRA = {"Norway": "NO1"}
+NOMI_SQUADRE = {t for blocchi in dati.values() for b in blocchi.values() for t in b["teams"]}
+for url in ["https://www.football-data.co.uk/fixtures.csv", "https://www.football-data.co.uk/new_league_fixtures.csv"]:
+    try:
+        testo = scarica(url)
+        n = 0
+        for riga in csv.DictReader(io.StringIO(testo)):
+            codice = (riga.get("Div") or "").strip() or PAESI_EXTRA.get((riga.get("Country") or "").strip(), "")
+            if codice not in dati:
+                continue
+            casa = (riga.get("HomeTeam") or riga.get("Home") or "").strip()
+            trasf = (riga.get("AwayTeam") or riga.get("Away") or "").strip()
+            if not casa or not trasf or not riga.get("Date"):
+                continue
+            d = data_iso(riga["Date"])
+            if d < oggi_iso:
+                continue
+            if casa not in NOMI_SQUADRE:
+                casa = NOMI_NOTI.get(chiave(casa), casa)
+            if trasf not in NOMI_SQUADRE:
+                trasf = NOMI_NOTI.get(chiave(trasf), trasf)
+            calendario[(codice, d, casa, trasf)] = (riga.get("Time") or "").strip()
+            n += 1
+        print("OK   calendario", url.rsplit("/", 1)[1], n, "partite", flush=True)
+    except Exception as e:
+        print("ERR  calendario", url.rsplit("/", 1)[1], e, flush=True)
+prossime = [[d, ora, codice, casa, trasf] for (codice, d, casa, trasf), ora in calendario.items()]
+prossime.sort(key=lambda p: (p[0], p[1], p[2]))
+print("Calendario:", len(prossime), "partite in programma")
 
 # ---- NAZIONALI (solo risultati finali) ----
 # archivio pubblico di tutte le partite internazionali: github.com/martj42/international_results
@@ -327,7 +367,7 @@ except Exception as e:
 os.makedirs("data", exist_ok=True)
 with open(FILE_OUT, "w", encoding="utf-8") as f:
     json.dump({"updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-               "cols": COLONNE, "data": dati}, f, separators=(",", ":"), ensure_ascii=False)
+               "cols": COLONNE, "data": dati, "fixtures": prossime}, f, separators=(",", ":"), ensure_ascii=False)
 
 # elimina i vecchi file CSV della prima versione
 for vecchio_csv in glob.glob(os.path.join("data", "*.csv")) + [os.path.join("data", "meta.json")]:

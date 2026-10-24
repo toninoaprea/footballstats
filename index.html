@@ -141,6 +141,30 @@ tbody tr:hover{background:#fff8dc}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
 
+/* PRONOSTICI */
+.pr-note{background:#eef4fd;border-left:4px solid var(--blue);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--navy2);margin-bottom:14px;line-height:1.45}
+.pr-match{text-align:left;cursor:pointer}
+.pr-match b{color:var(--navy)}
+.pr-match:hover b{text-decoration:underline}
+.pr-xg{font-size:11px;color:var(--muted)}
+.pr-day td{background:#e9eff8 !important;font-family:'Oswald';text-transform:uppercase;font-size:13px;color:var(--navy2);text-align:left;padding:7px 10px}
+.pr-nd{font-size:12px;color:var(--muted);font-style:italic}
+.thr{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:600}
+.thr input[type=range]{width:120px;accent-color:var(--navy)}
+.thr b{color:var(--navy);min-width:38px}
+.vs{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin:6px 0 16px}
+.vs .side{text-align:center;min-width:150px}
+.vs .side h3{font-size:22px;color:var(--navy)}
+.vs .side .lg{font-size:12px;color:var(--muted)}
+.vs .vsmid{font-family:'Oswald';font-size:14px;color:var(--muted);text-align:center}
+.vs .vsmid .xg{font-size:26px;color:var(--navy)}
+.scores{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+.score{background:#f4f7fb;border-radius:10px;padding:10px;text-align:center}
+.score .r{font-family:'Oswald';font-size:20px;color:var(--navy)}
+.score .p{font-size:12px;color:var(--muted)}
+.mtab td.m{font-weight:600}
+.mtab td.avg{font-weight:700}
+
 /* MULTI-SELECT CAMPIONATI */
 .ms{position:relative}
 .ms-btn{padding:9px 34px 9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;background:#f8fafd;font-weight:600;color:var(--navy);cursor:pointer;min-width:200px;text-align:left;position:relative;font-family:inherit}
@@ -173,6 +197,7 @@ tbody tr:hover{background:#fff8dc}
     <nav>
       <button class="active" data-page="home">Home</button>
       <button data-page="squadre">Squadre</button>
+      <button data-page="pronostici">Pronostici</button>
     </nav>
     <button class="btn-upd" id="btnUpd"><span class="ic">⟳</span> Aggiorna</button>
   </div>
@@ -226,6 +251,32 @@ tbody tr:hover{background:#fff8dc}
       </div>
     </div>
   </section>
+
+  <!-- PRONOSTICI -->
+  <section class="page" id="page-pronostici">
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Pronostici statistici</h2><span class="sub" id="prCount"></span></div>
+      <div class="pr-note">Probabilità <b>solo statistiche</b>, calcolate sulle ultime 100 partite di campionato delle due squadre (squadra di casa nelle partite in casa, ospite in trasferta).
+        Non tengono conto di infortuni, formazioni, motivazioni o quote. Sono stime, non certezze. Clicca una partita per il dettaglio.</div>
+      <div class="filters">
+        <select id="prDay"></select>
+        <select id="prLeague"></select>
+        <select id="prMethod" title="Metodo di calcolo">
+          <option value="media">Metodo: media dei due</option>
+          <option value="freq">Metodo: frequenza</option>
+          <option value="pois">Metodo: modello gol (Poisson)</option>
+        </select>
+        <div class="chips" id="prChips">
+          <button class="chip on" data-m="esiti">1X2 / Over / Goal</button>
+          <button class="chip" data-m="tempi">1° / 2° tempo</button>
+          <button class="chip" data-m="ang">Angoli</button>
+        </div>
+        <label class="thr">Minimo <input type="range" id="prThr" min="0" max="95" step="5" value="0"> <b id="prThrV">0%</b></label>
+      </div>
+      <div class="tw"><table id="prTable"></table></div>
+      <p class="muted" style="font-size:12px;margin-top:8px" id="prFoot"></p>
+    </div>
+  </section>
 </main>
 
 <div class="modal" id="modal"><div class="card"><button class="close" onclick="closeModal()">✕</button><div id="modalBody"></div></div></div>
@@ -272,7 +323,7 @@ const OF_SEASONS = ['2023-24','2024-25','2025-26','2026-27'];
 const CACHE_KEY = 'statcamp_cache_v3';
 
 /* ================= STATE ================= */
-let MATCHES = [], TEAMS = {}, TEAM_LIST = [];
+let MATCHES = [], TEAMS = {}, TEAM_LIST = [], FIXTURES = [];
 let INFO = {src:'', time:null};
 
 /* ================= UTILS ================= */
@@ -309,6 +360,7 @@ const formHTML = f => `<span class="form">${f.map(r=>`<span class="f ${r}">${r}<
 // fonte principale: data/partite.json creato dal robot GitHub (football-data.co.uk)
 function parseRepo(json){
   const cols = json.cols, all = [];
+  FIXTURES = (json.fixtures || []).map(f => ({d:f[0], ora:f[1], lg:f[2], h:f[3], a:f[4]}));
   const ci = k => cols.indexOf(k);
   const I = {hg:ci('FTHG'), ag:ci('FTAG'), hh:ci('HTHG'), ah:ci('HTAG'), hc:ci('HC'), ac:ci('AC'),
              hy:ci('HY'), ay:ci('AY'), hr:ci('HR'), ar:ci('AR'), hs:ci('HS'), as:ci('AS')};
@@ -410,6 +462,7 @@ function build(){
   $('status').innerHTML = `${TEAM_LIST.filter(t=>t.active).length} squadre · ultima partita: <b>${last}</b> · fonte: ${INFO.src}${full?'':' (senza cartellini e angoli)'} · aggiornato ${INFO.time ? new Date(INFO.time).toLocaleString('it-IT') : '-'}`;
   buildLeagueSelect();
   renderSquadre(); renderCompare(); if(currentTeam && TEAMS[currentTeam]) showTeam(currentTeam);
+  LEAGUE_AVG = {}; buildPronoFilters(); renderPronostici();
 }
 
 const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5], COV = [7.5,8.5,9.5,10.5,11.5];
@@ -840,6 +893,240 @@ $('sqTable').addEventListener('click', e => {
   const n = e.target.closest('.tname'); if(n) openModal(n.dataset.n);
 });
 $('sqFilter').addEventListener('input', renderSquadre);
+
+/* ================= PRONOSTICI ================= */
+// Mercati: per ognuno la regola "frequenza" (cosa è successo nella partita, dal punto di vista della squadra)
+// e il calcolo con il modello gol (Poisson).
+const MK = [
+  {k:'1',     l:'1',            g:'esiti', fr:(m,me,ot)=> m[me+'g'] > m[ot+'g']},
+  {k:'X',     l:'X',            g:'esiti', fr:(m,me,ot)=> m[me+'g'] === m[ot+'g']},
+  {k:'2',     l:'2',            g:'esiti', fr:(m,me,ot)=> m[me+'g'] < m[ot+'g'], away:true},
+  {k:'O15',   l:'Over 1,5',     g:'esiti', fr:m => m.hg+m.ag > 1.5},
+  {k:'O25',   l:'Over 2,5',     g:'esiti', fr:m => m.hg+m.ag > 2.5},
+  {k:'O35',   l:'Over 3,5',     g:'esiti', fr:m => m.hg+m.ag > 3.5},
+  {k:'GG',    l:'Goal',         g:'esiti', fr:m => m.hg>0 && m.ag>0},
+  {k:'NG',    l:'No Goal',      g:'esiti', fr:m => !(m.hg>0 && m.ag>0)},
+  {k:'O05',   l:'Over 0,5',     g:'extra', fr:m => m.hg+m.ag > 0.5},
+  {k:'U25',   l:'Under 2,5',    g:'extra', fr:m => m.hg+m.ag < 2.5},
+  {k:'T1O05', l:'Over 0,5 1°T', g:'tempi', ht:true, fr:m => m.hh+m.ah > 0.5},
+  {k:'T1O15', l:'Over 1,5 1°T', g:'tempi', ht:true, fr:m => m.hh+m.ah > 1.5},
+  {k:'T2O05', l:'Over 0,5 2°T', g:'tempi', ht:true, fr:m => (m.hg-m.hh)+(m.ag-m.ah) > 0.5},
+  {k:'T2O15', l:'Over 1,5 2°T', g:'tempi', ht:true, fr:m => (m.hg-m.hh)+(m.ag-m.ah) > 1.5},
+  {k:'GG1',   l:'Goal 1°T',     g:'tempi', ht:true, fr:m => m.hh>0 && m.ah>0},
+  {k:'GG2',   l:'Goal 2°T',     g:'tempi', ht:true, fr:m => m.hg-m.hh>0 && m.ag-m.ah>0},
+  {k:'C85',   l:'Over 8,5 angoli',  g:'ang', ck:true, fr:m => m.hc+m.ac > 8.5},
+  {k:'C95',   l:'Over 9,5 angoli',  g:'ang', ck:true, fr:m => m.hc+m.ac > 9.5},
+  {k:'C105',  l:'Over 10,5 angoli', g:'ang', ck:true, fr:m => m.hc+m.ac > 10.5},
+];
+const MKmap = Object.fromEntries(MK.map(x=>[x.k,x]));
+const hasHT = m => m.hh!=null && m.ah!=null, hasCK = m => m.hc!=null && m.ac!=null;
+
+// --- medie del campionato (ultime ~2 stagioni) per il modello gol
+let LEAGUE_AVG = {};
+function leagueAvg(lg){
+  if(LEAGUE_AVG[lg]) return LEAGUE_AVG[lg];
+  const ms = MATCHES.filter(m => m.lg===lg).slice(0, 800);
+  const avg = (arr, f) => { const v = arr.map(f).filter(x => x!=null && !isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; };
+  const ht = ms.filter(hasHT), ck = ms.filter(hasCK);
+  return LEAGUE_AVG[lg] = {
+    n: ms.length,
+    ft: [avg(ms, m=>m.hg), avg(ms, m=>m.ag)],
+    h1: [avg(ht, m=>m.hh), avg(ht, m=>m.ah)],
+    h2: [avg(ht, m=>m.hg-m.hh), avg(ht, m=>m.ag-m.ah)],
+    ck: [avg(ck, m=>m.hc), avg(ck, m=>m.ac)],
+  };
+}
+// partite in casa (side='h') o in trasferta (side='a') di una squadra
+function venueMatches(t, side){ return t.matches.filter(m => m[side]===t.name); }
+
+// gol attesi con forza attacco/difesa rispetto alla media del campionato, "tirata" verso la media se ci sono poche partite
+const SHRINK = 6;
+function expected(H, A, lg, kind){
+  const L = leagueAvg(lg)[kind];
+  if(!L || L[0]==null || L[1]==null) return null;
+  const val = {ft:[m=>m.hg, m=>m.ag], h1:[m=>m.hh, m=>m.ah], h2:[m=>m.hg-m.hh, m=>m.ag-m.ah], ck:[m=>m.hc, m=>m.ac]}[kind];
+  const ok = kind==='ft' ? (()=>true) : kind==='ck' ? hasCK : hasHT;
+  const hm = venueMatches(H,'h').filter(ok), am = venueMatches(A,'a').filter(ok);
+  if(hm.length < 3 || am.length < 3) return null;
+  const mean = (arr,f) => arr.reduce((s,m)=>s+f(m),0)/arr.length;
+  const ratio = (x, base, n) => ((x/base)*n + SHRINK) / (n + SHRINK);
+  const attH = ratio(mean(hm, val[0]), L[0], hm.length);   // gol fatti in casa da H
+  const defH = ratio(mean(hm, val[1]), L[1], hm.length);   // gol subiti in casa da H
+  const attA = ratio(mean(am, val[1]), L[1], am.length);   // gol fatti in trasferta da A
+  const defA = ratio(mean(am, val[0]), L[0], am.length);   // gol subiti in trasferta da A
+  return {h: attH*defA*L[0], a: attA*defH*L[1], nh: hm.length, na: am.length};
+}
+const pois = (k, l) => { let p = Math.exp(-l); for(let i=1;i<=k;i++) p *= l/i; return p; };
+const overP = (l, x) => { let c = 0; for(let k=0;k<=Math.floor(x);k++) c += pois(k,l); return 1-c; };
+
+function poissonModel(H, A, lg){
+  const ft = expected(H, A, lg, 'ft');
+  if(!ft) return null;
+  const N = 10, M = [];
+  for(let i=0;i<=N;i++){ M[i]=[]; for(let j=0;j<=N;j++) M[i][j] = pois(i,ft.h)*pois(j,ft.a); }
+  const sum = f => { let s=0; for(let i=0;i<=N;i++) for(let j=0;j<=N;j++) if(f(i,j)) s+=M[i][j]; return s*100; };
+  const P = {
+    '1': sum((i,j)=>i>j), 'X': sum((i,j)=>i===j), '2': sum((i,j)=>i<j),
+    O05: sum((i,j)=>i+j>0), O15: sum((i,j)=>i+j>1), O25: sum((i,j)=>i+j>2), O35: sum((i,j)=>i+j>3), U25: sum((i,j)=>i+j<3),
+    GG: sum((i,j)=>i>0&&j>0), NG: sum((i,j)=>!(i>0&&j>0)),
+  };
+  const scores = [];
+  for(let i=0;i<=5;i++) for(let j=0;j<=5;j++) scores.push({r:`${i}-${j}`, p:M[i][j]*100});
+  scores.sort((a,b)=>b.p-a.p);
+  const h1 = expected(H, A, lg, 'h1'), h2 = expected(H, A, lg, 'h2'), ck = expected(H, A, lg, 'ck');
+  if(h1){ P.T1O05 = overP(h1.h+h1.a,0.5)*100; P.T1O15 = overP(h1.h+h1.a,1.5)*100; P.GG1 = (1-Math.exp(-h1.h))*(1-Math.exp(-h1.a))*100; }
+  if(h2){ P.T2O05 = overP(h2.h+h2.a,0.5)*100; P.T2O15 = overP(h2.h+h2.a,1.5)*100; P.GG2 = (1-Math.exp(-h2.h))*(1-Math.exp(-h2.a))*100; }
+  if(ck){ const l = ck.h+ck.a; P.C85 = overP(l,8.5)*100; P.C95 = overP(l,9.5)*100; P.C105 = overP(l,10.5)*100; }
+  return {P, xg: ft, ck, scores: scores.slice(0,8)};
+}
+// frequenza: media tra % della squadra di casa nelle sue partite in casa e % dell'ospite nelle sue partite in trasferta
+function freqModel(H, A){
+  const hm = venueMatches(H,'h'), am = venueMatches(A,'a');
+  const P = {}, N = {};
+  for(const x of MK){
+    const ok = x.ht ? hasHT : x.ck ? hasCK : (()=>true);
+    const h = hm.filter(ok), a = am.filter(ok);
+    if(h.length < 3 || a.length < 3) continue;
+    // per 1X2 si guarda dal punto di vista di ciascuna squadra ("me"): per l'ospite, vittoria di casa = sconfitta sua
+    let ph, pa;
+    if(x.k==='1'){ ph = h.filter(m=>MKmap['1'].fr(m,'h','a')).length; pa = a.filter(m=>MKmap['1'].fr(m,'h','a')).length; }
+    else if(x.k==='2'){ ph = h.filter(m=>MKmap['2'].fr(m,'h','a')).length; pa = a.filter(m=>MKmap['2'].fr(m,'h','a')).length; }
+    else { ph = h.filter(m=>x.fr(m,'h','a')).length; pa = a.filter(m=>x.fr(m,'h','a')).length; }
+    P[x.k] = (ph/h.length*100 + pa/a.length*100) / 2;
+    N[x.k] = [ph, h.length, pa, a.length];
+  }
+  return {P, N, nh: hm.length, na: am.length};
+}
+function pronostico(f){
+  const H = TEAMS[f.h], A = TEAMS[f.a];
+  if(!H || !A) return {f, H, A, ok:false};
+  const pm = poissonModel(H, A, f.lg), fm = freqModel(H, A);
+  const media = {};
+  for(const x of MK){
+    const a = fm.P[x.k], b = pm ? pm.P[x.k] : undefined;
+    media[x.k] = a!=null && b!=null ? (a+b)/2 : (a!=null ? a : b);
+  }
+  return {f, H, A, ok:true, pm, fm, P:{freq:fm.P, pois:pm?pm.P:{}, media}};
+}
+
+let prMode = 'esiti', prSort = null;
+const PR_COLS = {
+  esiti: ['1','X','2','O15','O25','O35','GG','NG'],
+  tempi: ['T1O05','T1O15','T2O05','T2O15','GG1','GG2'],
+  ang:   ['C85','C95','C105'],
+};
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const GIORNI = ['dom','lun','mar','mer','gio','ven','sab'];
+function dayLabel(iso){
+  const [y,m,d] = iso.split('-').map(Number), dt = new Date(y,m-1,d);
+  const t = todayISO(), dom = new Date(); dom.setDate(dom.getDate()+1);
+  const tom = `${dom.getFullYear()}-${String(dom.getMonth()+1).padStart(2,'0')}-${String(dom.getDate()).padStart(2,'0')}`;
+  const base = `${GIORNI[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+  return iso===t ? 'Oggi · '+base : iso===tom ? 'Domani · '+base : base;
+}
+function upcoming(){ const t = todayISO(); return FIXTURES.filter(f => f.d >= t); }
+function buildPronoFilters(){
+  const fx = upcoming();
+  const days = [...new Set(fx.map(f=>f.d))].sort();
+  const dSel = $('prDay'), oldD = dSel.value;
+  dSel.innerHTML = `<option value="all">📅 Tutti i giorni (${fx.length})</option>` + days.map(d=>`<option value="${d}">${dayLabel(d)} (${fx.filter(f=>f.d===d).length})</option>`).join('');
+  if([...dSel.options].some(o=>o.value===oldD)) dSel.value = oldD;
+  const lgs = new Set(fx.map(f=>f.lg));
+  const lSel = $('prLeague'), oldL = lSel.value;
+  const countries = [...new Set(LEAGUES.map(l=>l.country))];
+  lSel.innerHTML = `<option value="all">🌍 Tutti i campionati</option>` + countries.map(c => {
+    const ls = LEAGUES.filter(l => l.country===c && lgs.has(l.code));
+    return ls.length ? `<optgroup label="${c}">${ls.map(l=>`<option value="${l.code}">${l.name} (${fx.filter(f=>f.lg===l.code).length})</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  if([...lSel.options].some(o=>o.value===oldL)) lSel.value = oldL;
+}
+const pc = v => v==null ? '<span class="muted">–</span>' : heat(v, 25, 90);
+function renderPronostici(){
+  if(!$('prTable')) return;
+  const day = $('prDay').value || 'all', lg = $('prLeague').value || 'all', meth = $('prMethod').value;
+  const thr = +$('prThr').value; $('prThrV').textContent = thr+'%';
+  const cols = PR_COLS[prMode];
+  if(!prSort || !cols.includes(prSort)) prSort = null;
+  $('prThr').disabled = !prSort;
+  $('prThr').parentElement.style.opacity = prSort ? 1 : .45;
+  $('prThr').parentElement.title = prSort ? '' : 'Prima clicca una colonna per scegliere il mercato';
+  let rows = upcoming().filter(f => (day==='all' || f.d===day) && (lg==='all' || f.lg===lg)).map(pronostico);
+  const val = r => r.ok ? r.P[meth][prSort] : null;
+  if(prSort){
+    rows = rows.filter(r => (val(r) ?? -1) >= thr);
+    rows.sort((a,b) => (val(b) ?? -1) - (val(a) ?? -1));
+  }
+  $('prCount').textContent = `${rows.length} partite`;
+  const head = `<tr><th>Ora</th><th></th><th class="left">Partita</th>${cols.map(k=>`<th class="ov" data-k="${k}" title="Clicca per ordinare">${MKmap[k].l.replace(' angoli','').replace('Over ','O ')} ${prSort===k?'<span class="arr">▼</span>':''}</th>`).join('')}</tr>`;
+  let body = '', lastDay = null;
+  for(const r of rows){
+    if(!prSort && r.f.d !== lastDay){ body += `<tr class="pr-day"><td colspan="${cols.length+3}">${dayLabel(r.f.d)}</td></tr>`; lastDay = r.f.d; }
+    const name = n => TEAMS[n] ? esc(TEAMS[n].short) : esc(n);
+    const xg = r.ok && r.pm ? `<div class="pr-xg">gol attesi ${r.pm.xg.h.toFixed(2)} - ${r.pm.xg.a.toFixed(2)}${prMode==='ang' && r.pm.ck ? ` · angoli attesi ${(r.pm.ck.h+r.pm.ck.a).toFixed(1)}` : ''}</div>` : '';
+    body += `<tr>
+      <td class="muted">${prSort ? dayLabel(r.f.d).replace(/ · .*/, m=>'')+'<br>' : ''}${r.f.ora || ''}</td>
+      <td>${flag(r.f.lg)}</td>
+      <td class="pr-match" data-i="${esc(r.f.lg+'|'+r.f.d+'|'+r.f.h+'|'+r.f.a)}"><b>${name(r.f.h)}</b> - <b>${name(r.f.a)}</b>${xg}</td>
+      ${r.ok ? cols.map(k=>`<td>${pc(r.P[meth][k])}</td>`).join('') : `<td colspan="${cols.length}" class="pr-nd">dati insufficienti per una delle due squadre</td>`}
+    </tr>`;
+  }
+  if(!rows.length) body = `<tr><td colspan="${cols.length+3}" class="empty">${FIXTURES.length ? 'Nessuna partita con questi filtri' : 'Calendario non ancora disponibile: aggiorna il robot (Actions → Aggiorna dati)'}</td></tr>`;
+  $('prTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+  $('prFoot').textContent = prSort
+    ? `Ordinate per ${MKmap[prSort].l}, dalla più probabile. Clicca di nuovo l'intestazione per tornare all'ordine per data.`
+    : `Clicca l'intestazione di una colonna per ordinare le partite dalla più probabile; con "Minimo" nascondi quelle sotto la soglia.`;
+}
+function openPronostico(key){
+  const [lg, d, h, a] = key.split('|');
+  const f = FIXTURES.find(x => x.lg===lg && x.d===d && x.h===h && x.a===a); if(!f) return;
+  const r = pronostico(f);
+  if(!r.ok){ $('modalBody').innerHTML = `<div class="empty">Dati insufficienti: una delle due squadre non ha partite in archivio.</div>`; $('modal').classList.add('open'); return; }
+  const {H, A, pm, fm} = r;
+  const rowsHTML = MK.map(x => {
+    const fv = fm.P[x.k], pv = pm ? pm.P[x.k] : null, mv = r.P.media[x.k];
+    if(fv==null && pv==null) return '';
+    const n = fm.N[x.k];
+    const tip = n ? `${H.short} in casa: ${n[0]}/${n[1]} · ${A.short} in trasferta: ${n[2]}/${n[3]}` : '';
+    return `<tr><td class="left m">${x.l}</td><td title="${esc(tip)}">${fp(fv)}</td><td>${fp(pv)}</td><td class="avg">${pc(mv)}</td></tr>`;
+  }).join('');
+  const RIT_SHOW = ['O2','GG','T10','GG1','C2'];
+  const ritRows = RIT_SHOW.map(k => { const e = RIT.find(x=>x.k===k); if(!e) return '';
+    return `<tr><td class="left m">${e.l}</td><td>${ritHTML(H.rit[k])}</td><td>${ritHTML(A.rit[k])}</td></tr>`; }).join('');
+  $('modalBody').innerHTML = `
+    <div class="vs">
+      <div class="side"><h3>${esc(H.short)}</h3><div class="lg">in casa: ${fm.nh} partite</div><div style="margin-top:6px">${formHTML(H.form)}</div></div>
+      <div class="vsmid">${pm ? `GOL ATTESI<div class="xg">${pm.xg.h.toFixed(2)} - ${pm.xg.a.toFixed(2)}</div>` : ''}${flag(f.lg)} ${lgName(f.lg)}<br>${dayLabel(f.d)} ${f.ora||''}</div>
+      <div class="side"><h3>${esc(A.short)}</h3><div class="lg">in trasferta: ${fm.na} partite</div><div style="margin-top:6px">${formHTML(A.form)}</div></div>
+    </div>
+    <div class="two">
+      <div>
+        <div class="sec-title">Probabilità <small>passa il mouse sulla frequenza per i numeri</small></div>
+        <div class="tw"><table class="mtab"><thead><tr><th class="left">Mercato</th><th>Frequenza</th><th>Poisson</th><th>Media</th></tr></thead><tbody>${rowsHTML}</tbody></table></div>
+      </div>
+      <div>
+        ${pm ? `<div class="sec-title">Risultati esatti più probabili <small>modello Poisson</small></div>
+        <div class="scores">${pm.scores.map(x=>`<div class="score"><div class="r">${x.r}</div><div class="p">${x.p.toFixed(1)}%</div></div>`).join('')}</div>` : ''}
+        <div class="sec-title">Ritardi</div>
+        <div class="tw"><table><thead><tr><th class="left"></th><th>${esc(H.short)}</th><th>${esc(A.short)}</th></tr></thead><tbody>${ritRows}</tbody></table></div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:11.5px;margin-top:12px"><b>Frequenza</b>: media tra quante volte è successo a ${esc(H.short)} nelle partite in casa e a ${esc(A.short)} in quelle in trasferta.
+    <b>Poisson</b>: gol attesi calcolati da attacco e difesa delle due squadre rispetto alla media del campionato, poi trasformati in probabilità.</p>`;
+  $('modal').classList.add('open');
+}
+['prDay','prLeague','prMethod'].forEach(id => $(id).addEventListener('change', renderPronostici));
+$('prThr').addEventListener('input', renderPronostici);
+$('prChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c) return;
+  prMode = c.dataset.m; prSort = null;
+  [...$('prChips').children].forEach(x => x.classList.toggle('on', x===c));
+  renderPronostici();
+});
+$('prTable').addEventListener('click', e => {
+  const th = e.target.closest('th[data-k]');
+  if(th){ prSort = prSort===th.dataset.k ? null : th.dataset.k; renderPronostici(); return; }
+  const m = e.target.closest('.pr-match'); if(m) openPronostico(m.dataset.i);
+});
 
 /* ================= NAV ================= */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
