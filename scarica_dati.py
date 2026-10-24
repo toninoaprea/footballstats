@@ -130,7 +130,8 @@ for camp, stag, blocco in risultati:
 
 # ---- CAMPIONATI "EXTRA" di football-data.co.uk (stagione solare, solo risultati finali) ----
 # un file per nazione con tutte le stagioni: colonne Season, Date, Home, Away, HG, AG
-EXTRA = {"NO1": "https://www.football-data.co.uk/new/NOR.csv"}   # Norvegia Eliteserien
+EXTRA = {"NO1": "https://www.football-data.co.uk/new/NOR.csv",    # Norvegia Eliteserien
+         "SW1": "https://www.football-data.co.uk/new/SWZ.csv"}    # Svizzera Super League
 for codice, url in EXTRA.items():
     try:
         testo = scarica(url, limite=90)
@@ -164,11 +165,15 @@ for codice, url in EXTRA.items():
 # Metti nella cartella "manuali" i file CSV delle partite. Il nome del file dice il campionato:
 #   I3A_qualcosa.csv = Serie C Girone A   I3B_... = Girone B   I3C_... = Girone C   B2_... = Challenger Pro League
 #   NO2_... = Norvegia OBOS-ligaen   EN_... = National League North   ES_... = National League South
+#   IS1_... = Islanda Besta deild    N2_... = Olanda Eerste Divisie
+#   NO1_... / SW1_... = Norvegia / Svizzera: se carichi il CSV, sostituisce la fonte automatica (che ha solo i risultati finali)
 # Vanno bene i CSV di football-data.co.uk e quelli "matches" di FootyStats.
 # Se ricarichi un file aggiornato, le partite già presenti vengono sostituite (niente doppioni).
 MANUALI = {"I3A": "Serie C Girone A", "I3B": "Serie C Girone B", "I3C": "Serie C Girone C", "B2": "Challenger Pro League",
-           "NO2": "Norvegia OBOS-ligaen", "EN": "National League North", "ES": "National League South"}
-STAGIONE_SOLARE = {"NO1", "NO2"}   # campionati che si giocano nell'anno solare (marzo-novembre)
+           "NO2": "Norvegia OBOS-ligaen", "EN": "National League North", "ES": "National League South",
+           "IS1": "Islanda Besta deild", "N2": "Olanda Eerste Divisie",
+           "NO1": "Norvegia Eliteserien", "SW1": "Svizzera Super League"}
+STAGIONE_SOLARE = {"NO1", "NO2", "IS1"}   # campionati che si giocano nell'anno solare (marzo-novembre)
 # stesse colonne del robot, con i nomi usati da FootyStats
 SINONIMI = {
     "HomeTeam": ["HomeTeam", "home_team_name"], "AwayTeam": ["AwayTeam", "away_team_name"],
@@ -206,7 +211,8 @@ def stagione_di(d):
 def chiave(nome):
     """Nome semplificato per far combaciare fonti diverse: 'US Salernitana 1919' -> 'salernitana'."""
     parole = re.sub(r"[^a-z0-9 ]", " ", nome.lower()).split()
-    togli = {"fc", "ac", "as", "us", "ss", "ssc", "ssd", "asd", "calcio", "cf", "sc", "afc", "kv", "kfc", "rsc", "sk"}
+    togli = {"fc", "ac", "as", "us", "ss", "ssc", "ssd", "asd", "calcio", "cf", "sc", "afc", "kv", "kfc", "rsc", "sk",
+             "fk", "il", "bk", "if", "ik", "ff", "aif", "sv", "vv", "bc", "cd", "ud", "rc", "kaa", "krc", "rfc", "umf", "ia"}
     return "".join(p for p in parole if p not in togli and not re.fullmatch(r"(18|19|20)\d\d", p))
 
 
@@ -257,6 +263,9 @@ for percorso in sorted(glob.glob(os.path.join("manuali", "*.csv"))):
         n += 1
     print("OK   manuale", nome_file, "→", MANUALI[codice], n, "partite")
 
+for codice in {k[0] for k in manuali} & set(EXTRA):
+    dati.pop(codice, None)        # c'è il CSV completo: la fonte automatica (solo risultati) non serve
+    print("     ", codice, "uso il CSV caricato a mano al posto della fonte automatica")
 for (codice, d, casa, trasf), valori in sorted(manuali.items(), key=lambda x: x[0][1]):
     stag = d[:4] if codice in STAGIONE_SOLARE else stagione_di(d)
     b = dati.setdefault(codice, {}).setdefault(stag, {"teams": [], "rows": []})
@@ -267,7 +276,7 @@ for (codice, d, casa, trasf), valori in sorted(manuali.items(), key=lambda x: x[
 
 # ---- CALENDARIO: prossime partite (football-data.co.uk) ----
 # fixtures.csv = campionati principali; new_league_fixtures.csv = campionati "extra" (es. Norvegia)
-PAESI_EXTRA = {"Norway": "NO1"}
+PAESI_EXTRA = {"Norway": "NO1", "Switzerland": "SW1"}
 NOMI_SQUADRE = {t for blocchi in dati.values() for b in blocchi.values() for t in b["teams"]}
 for url in ["https://www.football-data.co.uk/fixtures.csv", "https://www.football-data.co.uk/new_league_fixtures.csv"]:
     try:

@@ -22,7 +22,7 @@ header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;bo
 .logo .ball{width:40px;height:40px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
 .logo h1{font-size:22px;text-transform:uppercase}
 .logo h1 span{color:var(--gold)}
-nav{display:flex;gap:6px;margin-left:auto}
+nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 nav button{background:transparent;border:2px solid transparent;color:#cfe0f5;font-family:'Oswald',sans-serif;font-size:15px;text-transform:uppercase;padding:7px 14px;border-radius:8px;cursor:pointer}
 nav button.active{background:var(--gold);color:var(--navy)}
 nav button:hover:not(.active){border-color:rgba(255,255,255,.25);color:#fff}
@@ -165,6 +165,25 @@ tbody tr:hover{background:#fff8dc}
 .mtab td.m{font-weight:600}
 .mtab td.avg{font-weight:700}
 
+/* CLASSIFICHE / NEXT */
+.cl-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.cl-grid{grid-template-columns:1fr}}
+.cl-grid h4{font-family:'Oswald';text-transform:uppercase;font-size:14px;color:var(--navy);margin:0 0 8px}
+.cl td,.cl th{padding:7px 6px;font-size:13px}
+tr.both td{background:#fff3c4 !important}
+tr.both td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
+.rel{font-weight:700;border-radius:6px;padding:2px 6px;display:inline-block;min-width:46px}
+.rel.r2{background:var(--loss);color:#fff}.rel.r1{background:#ffd9a8;color:#8a4b00}
+.nx td,.nx th{padding:6px 4px;font-size:12px}
+.nx th{font-size:11px;white-space:normal;line-height:1.15;min-width:44px}
+.nx .two-v{line-height:1.25}
+.nx .two-v small{display:block;color:var(--muted);font-size:10.5px}
+.nx .two-v b{font-family:'Oswald';font-size:15px;color:var(--navy);padding:0 5px;border-radius:5px}
+.nx .two-v b.r2{background:var(--loss);color:#fff}.nx .two-v b.r1{background:#ffd9a8;color:#8a4b00}
+.nx .tm{text-align:left;white-space:nowrap;cursor:pointer}
+.nx .tm div{font-weight:600;color:var(--navy)}
+.nx td.nxna{color:#b7c2d3}.nx th.nxna{color:#7d8ea8}
+
 /* MULTI-SELECT CAMPIONATI */
 .ms{position:relative}
 .ms-btn{padding:9px 34px 9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px;background:#f8fafd;font-weight:600;color:var(--navy);cursor:pointer;min-width:200px;text-align:left;position:relative;font-family:inherit}
@@ -186,7 +205,8 @@ tbody tr:hover{background:#fff8dc}
 .modal.open{display:flex}
 .modal .card{max-width:960px;width:100%;position:relative}
 .close{position:absolute;top:12px;right:14px;border:none;background:#eef3f9;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer}
-@media(max-width:640px){nav{margin-left:0;width:100%}nav button{flex:1}.logo h1{font-size:18px}}
+@media(max-width:640px){nav{margin-left:0;width:100%}nav button{flex:1 1 30%;padding:6px 6px;font-size:13px}.logo h1{font-size:18px}.status{word-break:break-word}}
+html,body{overflow-x:hidden}
 </style>
 </head>
 <body>
@@ -198,6 +218,8 @@ tbody tr:hover{background:#fff8dc}
       <button class="active" data-page="home">Home</button>
       <button data-page="squadre">Squadre</button>
       <button data-page="pronostici">Pronostici</button>
+      <button data-page="classifiche">Classifiche</button>
+      <button data-page="next">Next</button>
     </nav>
     <button class="btn-upd" id="btnUpd"><span class="ic">⟳</span> Aggiorna</button>
   </div>
@@ -239,6 +261,7 @@ tbody tr:hover{background:#fff8dc}
           <button class="chip" data-m="ang">Over angoli</button>
           <button class="chip" data-m="rgol">Ritardi gol</button>
           <button class="chip" data-m="rtempi">Ritardi 1T / 2T</button>
+          <button class="chip" data-m="ralt">Ritardi MG / esatti / esp.</button>
           <button class="chip" data-m="rang">Ritardi angoli</button>
         </div>
         <input id="sqFilter" placeholder="Filtra per nome…" style="flex:1;min-width:160px">
@@ -277,6 +300,38 @@ tbody tr:hover{background:#fff8dc}
       <p class="muted" style="font-size:12px;margin-top:8px" id="prFoot"></p>
     </div>
   </section>
+
+  <!-- CLASSIFICHE -->
+  <section class="page" id="page-classifiche">
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Classifiche</h2><span class="sub" id="clCount"></span></div>
+      <div class="filters">
+        <select id="clTip"></select>
+        <select id="clLg" class="lgPreset"></select>
+        <select id="clTop"><option value="20">Primi 20</option><option value="50">Primi 50</option><option value="9999">Tutte le squadre</option></select>
+        <select id="clMin" title="Esclude le squadre con poche partite in archivio">
+          <option value="0">Tutte le squadre</option><option value="20">Almeno 20 partite</option><option value="38" selected>Almeno 38 partite</option><option value="60">Almeno 60 partite</option><option value="100">Solo con 100 partite</option></select>
+      </div>
+      <div id="clBody"></div>
+    </div>
+  </section>
+
+  <!-- NEXT -->
+  <section class="page" id="page-next">
+    <div class="card">
+      <div class="card-title"><div class="bar"></div><h2>Next · prossime partite</h2><span class="sub" id="nxCount"></span></div>
+      <div class="filters">
+        <select id="nxDay"></select>
+        <select id="nxLg" class="lgPreset"></select>
+        <div class="chips" id="nxChips">
+          <button class="chip on" data-m="rit">Ritardi</button>
+          <button class="chip" data-m="usc">Uscite</button>
+        </div>
+      </div>
+      <div class="tw"><table class="nx" id="nxTable"></table></div>
+      <div class="legend" id="nxLegend"></div>
+    </div>
+  </section>
 </main>
 
 <div class="modal" id="modal"><div class="card"><button class="close" onclick="closeModal()">✕</button><div id="modalBody"></div></div></div>
@@ -305,6 +360,7 @@ const LEAGUES = [
   {code:'F1',  name:'Ligue 1',          country:'Francia',     cc:'fr',     of:'fr.1'},
   {code:'F2',  name:'Ligue 2',          country:'Francia',     cc:'fr'},
   {code:'N1',  name:'Eredivisie',       country:'Olanda',      cc:'nl',     of:'nl.1'},
+  {code:'N2',  name:'Eerste Divisie',   country:'Olanda',      cc:'nl'},
   {code:'P1',  name:'Primeira Liga',    country:'Portogallo',  cc:'pt',     of:'pt.1'},
   {code:'B1',  name:'Pro League',       country:'Belgio',      cc:'be'},
   {code:'B2',  name:'Challenger Pro League', country:'Belgio', cc:'be'},
@@ -312,6 +368,8 @@ const LEAGUES = [
   {code:'G1',  name:'Super League',     country:'Grecia',      cc:'gr'},
   {code:'NO1', name:'Eliteserien',      country:'Norvegia',    cc:'no'},
   {code:'NO2', name:'OBOS-ligaen',      country:'Norvegia',    cc:'no'},
+  {code:'SW1', name:'Super League',     country:'Svizzera',    cc:'ch'},
+  {code:'IS1', name:'Besta deild',      country:'Islanda',     cc:'is'},
   {code:'SC0', name:'Premiership',      country:'Scozia',      cc:'gb-sct'},
   {code:'SC1', name:'Championship',     country:'Scozia',      cc:'gb-sct'},
   {code:'SC2', name:'League One',       country:'Scozia',      cc:'gb-sct'},
@@ -463,6 +521,7 @@ function build(){
   buildLeagueSelect();
   renderSquadre(); renderCompare(); if(currentTeam && TEAMS[currentTeam]) showTeam(currentTeam);
   LEAGUE_AVG = {}; buildPronoFilters(); renderPronostici();
+  buildClassifiche(); renderClassifiche(); buildNext(); renderNext();
 }
 
 const OV = [0.5,1.5,2.5,3.5], HOV = [0.5,1.5,2.5], COV = [7.5,8.5,9.5,10.5,11.5];
@@ -475,22 +534,38 @@ const RIT = [
   ...HOV.map((x,i)=>({k:'T1'+i, l:'Over '+comma(x)+' 1°T', grp:'tempi', need:'ht', ok:m => m.hh+m.ah > x})),
   ...HOV.map((x,i)=>({k:'T2'+i, l:'Over '+comma(x)+' 2°T', grp:'tempi', need:'ht', ok:m => (m.hg-m.hh)+(m.ag-m.ah) > x})),
   ...COV.map((x,i)=>({k:'C'+i, l:'Over '+comma(x)+' angoli', grp:'ang', need:'ck', ok:m => m.hc+m.ac > x})),
+  {k:'MG23', l:'Multigol 2-3',    grp:'altri', need:null, ok:m => m.hg+m.ag>=2 && m.hg+m.ag<=3},
+  {k:'RE10', l:'Ris. esatto 1-0 / 0-1', grp:'altri', need:null, ok:m => (m.hg===1&&m.ag===0)||(m.hg===0&&m.ag===1)},
+  {k:'RE21', l:'Ris. esatto 2-1 / 1-2', grp:'altri', need:null, ok:m => (m.hg===2&&m.ag===1)||(m.hg===1&&m.ag===2)},
+  {k:'RE11', l:'Ris. esatto 1-1',       grp:'altri', need:null, ok:m => m.hg===1&&m.ag===1},
+  {k:'RE20', l:'Ris. esatto 2-0 / 0-2', grp:'altri', need:null, ok:m => (m.hg===2&&m.ag===0)||(m.hg===0&&m.ag===2)},
+  {k:'ESP',  l:'Espulsione',      grp:'altri', need:'rc', ok:m => m.hr+m.ar > 0},
+];
+// le 16 tipologie del file Excel (il rigore non è disponibile nelle fonti gratuite)
+const TIP16 = [
+  {k:'O2',  s:'O2,5'}, {k:'O3', s:'O3,5'}, {k:'T11', s:'O1,5 1T'}, {k:'T12', s:'O2,5 1T'}, {k:'T21', s:'O1,5 2T'}, {k:'T22', s:'O2,5 2T'},
+  {k:'GG', s:'Gol'}, {k:'GG1', s:'Gol 1T'}, {k:'GG2', s:'Gol 2T'}, {k:'MG23', s:'MG 2-3'},
+  {k:'RE10', s:'1-0'}, {k:'RE21', s:'2-1'}, {k:'RE11', s:'1-1'}, {k:'RE20', s:'2-0'}, {k:'RIG', s:'Rigore', na:true}, {k:'ESP', s:'Esp.'},
 ];
 function calcRit(t){
   const out = {};
   for(const e of RIT){
-    let r = null, run = 0, max = 0, n = 0, last = null;
+    let r = null, run = 0, max = 0, n = 0, last = null, u = 0;
     for(const m of t.matches){                       // dalla più recente alla più vecchia
       if(e.need==='ht' && (m.hh==null || m.ah==null)) continue;
       if(e.need==='ck' && (m.hc==null || m.ac==null)) continue;
+      if(e.need==='rc' && (m.hr==null || m.ar==null)) continue;
       n++;
+      if(e.ok(m)){ u++; }
       if(e.ok(m)){ if(r===null){ r = run; last = m.d; } max = Math.max(max, run); run = 0; }
       else run++;
     }
     max = Math.max(max, run);
     const never = n>0 && r===null;
     if(never) r = run;
-    out[e.k] = {r: n ? r : null, max, n, never, last};
+    // rel = ritardo diviso l'intervallo medio tra due uscite (n / uscite): 100% = ritardo "normale"
+    const rel = n && u ? r / (n / u) * 100 : null;
+    out[e.k] = {r: n ? r : null, max, n, never, last, u, pct: n ? u/n*100 : null, rel};
     t['r'+e.k] = n ? r : null;
   }
   t.rit = out;
@@ -665,11 +740,11 @@ function teamCardHTML(t){
   ${cardsHTML}
 
   <div class="sec-title">Ritardi <small>partite consecutive senza l'evento, dalla più recente</small></div>
-  <div class="two">${['gol','tempi','ang'].map(g => {
+  <div class="two">${['gol','tempi','altri','ang'].map(g => {
     const ev = RIT.filter(e => e.grp===g && t.rit[e.k].n);
-    if(!ev.length) return g==='ang' ? `<div>${naBox('Gli angoli')}</div>` : g==='tempi' ? `<div>${naBox('I risultati del primo tempo')}</div>` : '';
+    if(!ev.length) return g==='altri' ? '' : g==='ang' ? `<div>${naBox('Gli angoli')}</div>` : g==='tempi' ? `<div>${naBox('I risultati del primo tempo')}</div>` : '';
     return `<div class="tw"><table>
-      <thead><tr><th class="left">${{gol:'Gol', tempi:'1° / 2° tempo', ang:'Angoli'}[g]}</th><th>Ritardo</th><th>Massimo</th><th>Ultima volta</th></tr></thead>
+      <thead><tr><th class="left">${{gol:'Gol', tempi:'1° / 2° tempo', altri:'Multigol / esatti / espulsione', ang:'Angoli'}[g]}</th><th>Ritardo</th><th>Massimo</th><th>Ultima volta</th></tr></thead>
       <tbody>${ev.map(e => { const x = t.rit[e.k]; return `<tr><td class="left"><b>${e.l}</b></td><td>${ritHTML(x)}</td>
         <td class="muted">${x.max}</td><td class="muted">${x.last ? fmtDate(x.last) : 'mai nelle ultime '+x.n}</td></tr>`; }).join('')}</tbody></table></div>`;
   }).join('')}</div>
@@ -765,7 +840,7 @@ function sqCols(){
     {k:'GF', l:'GF'}, {k:'GS', l:'GS'}, {k:'DR', l:'DR'}, {k:'PTS', l:'Pt'},
   ];
   const ritCols = g => RIT.filter(e => e.grp===g).map(e => ({k:'r'+e.k, rit:e.k, ov:true,
-    l: e.l.replace('Over ','O ').replace(' angoli','').replace('°T','T'), title:'Ritardo '+e.l}));
+    l: e.l.replace('Over ','O ').replace(' angoli','').replace('°T','T').replace('Ris. esatto ','').replace('Multigol','MG').replace('Espulsione','Esp.'), title:'Ritardo '+e.l}));
   const extra = {
     gol:    OV.map((x,i)=>({k:'pO'+i, l:'O '+comma(x), ov:true, heat:true})),
     gtempi: [{k:'pGG', l:'Goal', ov:true, heat:true}, {k:'pNG', l:'No Goal', ov:true, heat:true},
@@ -774,6 +849,7 @@ function sqCols(){
     ang:    [...COV.map((x,i)=>({k:'pC'+i, l:'O '+comma(x), ov:true, heat:true})), {k:'mCT', l:'Media', ov:true, title:'Media angoli totali a partita'}],
     rgol:   ritCols('gol'),
     rtempi: ritCols('tempi'),
+    ralt:   ritCols('altri'),
     rang:   ritCols('ang'),
   }[sqMode];
   return [...base, ...extra, {k:'form', l:'Ultime 5', nosort:true}];
@@ -781,7 +857,7 @@ function sqCols(){
 // --- scelta di uno o più campionati ---
 try{ const saved = JSON.parse(localStorage.getItem('statcamp_leagues')); if(Array.isArray(saved) && saved.length) sqLeagues = new Set(saved); }catch(e){}
 let presentLeagues = new Set();
-function saveLeagues(){ try{ localStorage.setItem('statcamp_leagues', JSON.stringify([...sqLeagues])); }catch(e){} }
+function saveLeagues(){ if(typeof renderClassifiche==='function'){ renderClassifiche(); renderNext(); } try{ localStorage.setItem('statcamp_leagues', JSON.stringify([...sqLeagues])); }catch(e){} }
 function buildLeagueSelect(){
   presentLeagues = new Set(TEAM_LIST.filter(t=>t.active).map(t=>t.league));
   sqLeagues = new Set([...sqLeagues].filter(c => presentLeagues.has(c)));
@@ -847,6 +923,7 @@ $('modeChips').addEventListener('click', e => {
   if(sqMode==='rgol') sqSort = {k:'rO2', dir:-1};
   if(sqMode==='rang') sqSort = {k:'rC2', dir:-1};
   if(sqMode==='rtempi') sqSort = {k:'rT10', dir:-1};
+  if(sqMode==='ralt') sqSort = {k:'rMG23', dir:-1};
   $('ritLegend').style.display = sqMode.startsWith('r') ? 'flex' : 'none';
   renderSquadre();
 });
@@ -1024,7 +1101,7 @@ function dayLabel(iso){
   const base = `${GIORNI[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
   return iso===t ? 'Oggi · '+base : iso===tom ? 'Domani · '+base : base;
 }
-function upcoming(){ const t = todayISO(); return FIXTURES.filter(f => f.d >= t); }
+function upcoming(){ const t = todayISO(); return FIXTURES.filter(f => f.d >= t).sort((a,b)=> a.d.localeCompare(b.d) || (a.ora||'').localeCompare(b.ora||'')); }
 function buildPronoFilters(){
   const fx = upcoming();
   const days = [...new Set(fx.map(f=>f.d))].sort();
@@ -1127,6 +1204,147 @@ $('prTable').addEventListener('click', e => {
   if(th){ prSort = prSort===th.dataset.k ? null : th.dataset.k; renderPronostici(); return; }
   const m = e.target.closest('.pr-match'); if(m) openPronostico(m.dataset.i);
 });
+
+/* ================= FILTRO CAMPIONATI (preset) ================= */
+// i 12 campionati del file Excel (Inghilterra e Belgio con tutte le serie disponibili)
+const CUGINO = ['B1','B2','SW1','D1','D2','E0','E1','E2','E3','EC','EN','ES','IS1','I1','N1','N2','NO1','NO2','T1'];
+function fillPreset(sel){
+  const present = new Set(TEAM_LIST.filter(t=>t.active).map(t=>t.league));
+  const old = sel.value || 'cugino';
+  const countries = [...new Set(LEAGUES.map(l=>l.country))].filter(c => c!=='Nazionali');
+  sel.innerHTML = `<option value="cugino">⭐ I 12 campionati del file Excel</option>
+    <option value="squadre">Come la selezione della pagina Squadre</option>
+    <option value="all">🌍 Tutti i campionati (club)</option>` +
+    countries.map(c => { const ls = LEAGUES.filter(l => l.country===c && present.has(l.code));
+      return ls.length ? `<optgroup label="${c}">${ls.length>1?`<option value="c:${c}">${c} – tutte le serie</option>`:''}${ls.map(l=>`<option value="${l.code}">${l.name}</option>`).join('')}</optgroup>` : ''; }).join('');
+  sel.value = [...sel.options].some(o=>o.value===old) ? old : 'cugino';
+}
+function presetSet(v){
+  if(v==='cugino') return new Set(CUGINO);
+  if(v==='squadre') return new Set(sqLeagues);
+  if(v==='all') return new Set(LEAGUES.filter(l=>l.code!=='NAZ').map(l=>l.code));
+  if(v.startsWith('c:')) return new Set(LEAGUES.filter(l=>l.country===v.slice(2)).map(l=>l.code));
+  return new Set([v]);
+}
+function relHTML(x){
+  if(!x || x.r==null) return '<span class="muted">–</span>';
+  if(x.rel==null) return `<span class="rel" title="mai uscito nelle ultime ${x.n}">mai</span>`;
+  const c = x.rel>=200 ? 'r2' : x.rel>=100 ? 'r1' : '';
+  return `<span class="rel ${c}" title="ritardo ${x.r} ÷ (${x.n} partite ÷ ${x.u} uscite)">${x.rel.toFixed(0)}%</span>`;
+}
+
+/* ================= CLASSIFICHE ================= */
+function buildClassifiche(){
+  const sel = $('clTip'), old = sel.value;
+  sel.innerHTML = TIP16.map((x,i)=>{ const e = RIT.find(r=>r.k===x.k);
+      return `<option value="${x.k}" ${x.na?'disabled':''}>${i+1}) ${e ? e.l : 'Rigore (non disponibile)'}</option>`; }).join('')
+    + `<option value="GOL">Gol totali: ultime 100 / 10 / 5 / 3, casa e trasferta</option>`;
+  sel.value = old && [...sel.options].some(o=>o.value===old && !o.disabled) ? old : 'O2';
+  fillPreset($('clLg'));
+}
+let golSort = {k:'m100', dir:-1};
+function renderClassifiche(){
+  if(!TEAM_LIST.length) return;
+  const k = $('clTip').value, lgs = presetSet($('clLg').value), top = +$('clTop').value;
+  const minN = +$('clMin').value;
+  const teams = TEAM_LIST.filter(t => t.active && lgs.has(t.league) && t.G >= minN);
+  $('clCount').textContent = `${teams.length} squadre`;
+  const nm = t => `${flag(t.league)} <span class="tname" data-n="${esc(t.name)}">${esc(t.short)}</span>`;
+  if(k==='GOL'){
+    const tot = m => m.hg+m.ag;
+    const sum = arr => arr.reduce((a,m)=>a+tot(m),0);
+    const rows = teams.map(t => {
+      const ms = t.matches, hm = ms.filter(m=>m.h===t.name), am = ms.filter(m=>m.a===t.name);
+      return {t, g100:sum(ms), n:ms.length, m100: ms.length? sum(ms)/ms.length : 0,
+        g10:sum(ms.slice(0,10)), g5:sum(ms.slice(0,5)), g3:sum(ms.slice(0,3)),
+        gc:sum(hm), nc:hm.length, mc: hm.length? sum(hm)/hm.length : 0,
+        gt:sum(am), nt:am.length, mt: am.length? sum(am)/am.length : 0};
+    });
+    rows.sort((a,b)=> (a[golSort.k]-b[golSort.k])*golSort.dir);
+    const H = [['#',''],['Squadra',''],['Gol ult. 100','m100'],['Ult. 10','g10'],['Ult. 5','g5'],['Ult. 3','g3'],['In casa','mc'],['In trasferta','mt']];
+    $('clBody').innerHTML = `<p class="muted" style="font-size:12px;margin-bottom:8px">Gol totali delle partite (fatti + subiti). Tra parentesi la media a partita. Clicca un'intestazione per ordinare.</p>
+      <div class="tw"><table class="cl" id="golTable"><thead><tr>${H.map(([l,c])=>`<th class="${l==='Squadra'?'left':''}" ${c?`data-g="${c}"`:''}>${l} ${golSort.k===c?'<span class="arr">'+(golSort.dir<0?'▼':'▲')+'</span>':''}</th>`).join('')}</tr></thead>
+      <tbody>${rows.slice(0,top).map((r,i)=>`<tr><td class="pos">${i+1}</td><td class="left">${nm(r.t)}</td>
+        <td><b>${r.g100}</b> <span class="muted">(${r.m100.toFixed(2)})</span><br><small class="muted">${r.n} partite</small></td>
+        <td>${r.g10}</td><td>${r.g5}</td><td>${r.g3}</td>
+        <td>${r.gc} <span class="muted">(${r.mc.toFixed(2)})</span><br><small class="muted">${r.nc} partite</small></td>
+        <td>${r.gt} <span class="muted">(${r.mt.toFixed(2)})</span><br><small class="muted">${r.nt} partite</small></td></tr>`).join('')}</tbody></table></div>`;
+    return;
+  }
+  const data = teams.map(t => ({t, x:t.rit[k]})).filter(o => o.x && o.x.n);
+  const byU = [...data].sort((a,b)=> b.x.u-a.x.u || b.x.pct-a.x.pct);
+  const byR = [...data].sort((a,b)=> b.x.r-a.x.r || (b.x.rel??0)-(a.x.rel??0));
+  const byP = [...data].sort((a,b)=> b.x.pct-a.x.pct || b.x.u-a.x.u);
+  const topU = new Set(byU.slice(0,top).map(o=>o.t.name)), topR = new Set(byR.slice(0,top).map(o=>o.t.name));
+  const both = new Set([...topU].filter(n=>topR.has(n)));
+  const table = (list, title) => `<div><h4>${title}</h4><div class="tw"><table class="cl"><thead><tr>
+      <th>#</th><th class="left">Squadra</th><th title="volte in cui è uscita, sulle partite con dati">Uscite</th><th>Ritardo</th><th title="ritardo più lungo nelle ultime 100">Storico</th><th title="ritardo ÷ (partite ÷ uscite)">%</th></tr></thead>
+      <tbody>${list.slice(0,top).map((o,i)=>`<tr class="${both.has(o.t.name)?'both':''}"><td class="pos">${i+1}</td><td class="left">${nm(o.t)}</td>
+        <td><b>${o.x.u}</b>${o.x.n!==100?`<small class="muted">/${o.x.n}</small>`:''}</td><td>${ritHTML(o.x)}</td><td class="muted">${o.x.max}</td><td>${relHTML(o.x)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const e = RIT.find(r=>r.k===k);
+  $('clBody').innerHTML = `
+    <p class="muted" style="font-size:12px;margin-bottom:10px">${e.l} · in <b style="background:#fff3c4;padding:0 4px">giallo</b> le ${both.size} squadre presenti nei primi ${top>500?'posti':top} di entrambe le classifiche.
+      <b>%</b> = ritardo attuale ÷ (partite ÷ uscite): 100% = ritardo nella media, 200% = il doppio.</p>
+    <div class="cl-grid">${table(byU,'Per numero di uscite')}${table(byR,'Per ritardo attuale')}</div>
+    <div style="margin-top:18px" class="cl-grid">${table(byP,'Per uscite in percentuale')}<div></div></div>`;
+}
+['clTip','clLg','clTop','clMin'].forEach(id => $(id).addEventListener('change', renderClassifiche));
+$('clBody').addEventListener('click', e => {
+  const th = e.target.closest('th[data-g]');
+  if(th){ const k = th.dataset.g; golSort = golSort.k===k ? {k, dir:-golSort.dir} : {k, dir:-1}; renderClassifiche(); return; }
+  const n = e.target.closest('.tname'); if(n) openModal(n.dataset.n);
+});
+
+/* ================= NEXT ================= */
+let nxMode = 'rit';
+function buildNext(){
+  const fx = upcoming(), days = [...new Set(fx.map(f=>f.d))].sort();
+  const dSel = $('nxDay'), old = dSel.value;
+  dSel.innerHTML = `<option value="all">📅 Tutti i giorni</option>` + days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join('');
+  if([...dSel.options].some(o=>o.value===old)) dSel.value = old;
+  fillPreset($('nxLg'));
+}
+function renderNext(){
+  if(!TEAM_LIST.length) return;
+  const day = $('nxDay').value || 'all', lgs = presetSet($('nxLg').value);
+  const fx = upcoming().filter(f => (day==='all' || f.d===day) && lgs.has(f.lg));
+  $('nxCount').textContent = `${fx.length} partite`;
+  const head = `<tr><th>Ora</th><th></th><th class="left">Partita</th>${TIP16.map(x=>`<th class="${x.na?'nxna':''}" title="${x.na?'Rigore: dato non disponibile':esc((RIT.find(r=>r.k===x.k)||{}).l||'')}">${x.s}</th>`).join('')}</tr>`;
+  let body = '', last = null;
+  for(const f of fx){
+    if(f.d!==last){ body += `<tr class="pr-day"><td colspan="${TIP16.length+3}">${dayLabel(f.d)}</td></tr>`; last = f.d; }
+    const H = TEAMS[f.h], A = TEAMS[f.a];
+    const cells = TIP16.map(x => {
+      if(x.na) return '<td class="nxna">–</td>';
+      const h = H && H.rit[x.k], a = A && A.rit[x.k];
+      const vh = h && h.n ? (nxMode==='rit' ? h.r : h.u) : null, va = a && a.n ? (nxMode==='rit' ? a.r : a.u) : null;
+      if(vh==null && va==null) return '<td class="nxna">n.d.</td>';
+      const both = [vh,va].filter(v=>v!=null), mn = Math.min(...both);
+      let cls = '';
+      if(nxMode==='rit'){ // colore in base al ritardo relativo (%) più basso tra le due squadre
+        const rels = [h,a].filter(z=>z && z.n && z.rel!=null).map(z=>z.rel);
+        const rmin = rels.length===2 ? Math.min(...rels) : null;
+        cls = rmin==null ? '' : rmin>=200 ? 'r2' : rmin>=100 ? 'r1' : '';
+      }
+      return `<td class="two-v"><b class="${cls}">${mn}</b><small>${vh??'–'} · ${va??'–'}</small></td>`;
+    }).join('');
+    const nmH = H ? esc(H.short) : esc(f.h), nmA = A ? esc(A.short) : esc(f.a);
+    body += `<tr><td class="muted">${f.ora||''}</td><td>${flag(f.lg)}</td>
+      <td class="tm pr-match" data-i="${esc(f.lg+'|'+f.d+'|'+f.h+'|'+f.a)}"><div>${nmH}</div><div>${nmA}</div></td>${cells}</tr>`;
+  }
+  if(!fx.length) body = `<tr><td colspan="${TIP16.length+3}" class="empty">${FIXTURES.length ? 'Nessuna partita con questi filtri' : 'Calendario non ancora disponibile: aggiorna il robot (Actions → Aggiorna dati)'}</td></tr>`;
+  $('nxTable').innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+  $('nxLegend').innerHTML = nxMode==='rit'
+    ? `<span>Numero grande = il <b>ritardo più piccolo</b> tra le due squadre · sotto: casa · trasferta</span>
+       <span><i style="background:var(--loss)"></i>tutte e due oltre il 200% del ritardo medio</span><span><i style="background:#ffd9a8"></i>tutte e due oltre il 100%</span>`
+    : `<span>Numero grande = le <b>uscite più basse</b> tra le due squadre (sulle ultime 100) · sotto: casa · trasferta</span>`;
+}
+['nxDay','nxLg'].forEach(id => $(id).addEventListener('change', renderNext));
+$('nxChips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c) return;
+  nxMode = c.dataset.m; [...$('nxChips').children].forEach(x => x.classList.toggle('on', x===c)); renderNext();
+});
+$('nxTable').addEventListener('click', e => { const m = e.target.closest('.pr-match'); if(m) openPronostico(m.dataset.i); });
 
 /* ================= NAV ================= */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
